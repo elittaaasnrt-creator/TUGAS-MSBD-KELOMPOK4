@@ -2,7 +2,7 @@
 
 ## Menyiapkan Lingkungan Kerja Basis Data
 
-**Kelompok:** TUGAS-MSBD-KELOMPOK4
+**Kelompok:** TUGAS-MSBD-KELOMPOK 4
 
 **Anggota:**
 

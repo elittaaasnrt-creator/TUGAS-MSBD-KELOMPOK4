@@ -7,7 +7,7 @@
 **Anggota:**
 
 - Jelita Hati Sinurat - 251402141 (elittaaasnrt-creator) — Project Manager
-- M. Dzakwan Rangkuti - 251402014 (dzakwanrangkuti)
+- M. Dzakwan Ismail Rangkuti - 251402014 (dzakwanrangkuti)
 - Agi Aginta Sembiring - 251402059 (agisembiring263-pixel)
 - M. Azkha Amorie - 251402092 (azkhaamorie)
 - Syifa Nazira - 251402126 (ziraa94)

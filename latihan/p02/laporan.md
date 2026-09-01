@@ -22,9 +22,9 @@ Alasannya karena batasannya jelas. Cuma nyangkut katalog alat, peminjaman, penge
 
 Tapi domain ini tetep punya aturan bisnis yang lumayan rumit buat dimodelin, contohnya:
 
-- Kuota peminjaman — anggota gak bisa asal pinjam sebanyak-banyaknya, ada batas maksimal unit yang boleh dipinjam dalam satu waktu.
-- Denda keterlambatan — kalau telat balikin dari jatuh tempo, kena denda, dan dendanya dihitung dari berapa lama telatnya.
-- Alat yang lagi diperbaiki gak boleh dipinjamkan — jadi kalau statusnya "dalam perbaikan", unit itu otomatis gak boleh muncul sebagai unit yang tersedia.
+- Kuota peminjaman : anggota gak bisa asal pinjam sebanyak-banyaknya, ada batas maksimal unit yang boleh dipinjam dalam satu waktu.
+- Denda keterlambatan : kalau telat balikin dari jatuh tempo, kena denda, dan dendanya dihitung dari berapa lama telatnya.
+- Alat yang lagi diperbaiki gak boleh dipinjamkan : jadi kalau statusnya "dalam perbaikan", unit itu otomatis gak boleh muncul sebagai unit yang tersedia.
 
 Tiga aturan ini yang bikin kami mikir domain ini pas buat latihan, soalnya gak bisa diselesein cuma pakai tabel biasa doang, harus mikirin constraint, trigger, atau logic di aplikasi.
 

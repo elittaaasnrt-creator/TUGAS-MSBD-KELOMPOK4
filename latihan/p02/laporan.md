@@ -25,6 +25,7 @@ Domain ini juga punya beberapa aturan bisnis yang tidak sederhana, di antaranya:
 - Alat yang sedang diperbaiki tidak boleh dipinjamkan.
 
 Ketiga aturan tersebut membuat domain ini cocok untuk latihan, karena tidak cukup diselesaikan dengan struktur tabel biasa, tapi perlu constraint, trigger, atau logika di sisi aplikasi.
+
 ---
 
 ### Ringkasan Lingkup Sistem
@@ -61,7 +62,6 @@ Migration pertama (V1 — skema awal) berhasil dijalankan lewat Flyway tanpa err
 
 Bukti: `bukti/flyway-info.png`, `bukti/migration-history.png`
 
-
 ---
 
 ### Bukti Database Dapat Dibangun Ulang
@@ -82,7 +82,7 @@ Bukti: `bukti/kolom-not-null.jpeg`
 
 ### Eksperimen Locking dan Pengamatan pg_stat_activity
 
-TODO
+Hasil pengamatan pg_stat_activity menunjukkan 3 proses aktif: PID 48 berstatus "idle in transaction" (transaksi dari Terminal 1 yang belum di-commit, memegang SELECT \* FROM anggota), PID 63 berstatus "active" dengan wait_event_type Lock saat menjalankan ALTER TABLE anggota ALTER COLUMN kategori TYPE varchar(30), dan PID 70 adalah query monitoring itu sendiri. Terlihat jelas bahwa perintah ALTER TABLE (PID 63) berhenti dan menunggu, karena transaksi di PID 48 masih memegang lock pada tabel yang sama meskipun cuma menjalankan SELECT.
 
 Bukti: `bukti/pg-stat-activity.png`
 
@@ -120,7 +120,7 @@ Bukti: `bukti/idempotent-seed-proof.png`
 
 **6. Catat apa yang terlihat pada pg_stat_activity. Perintah mana yang menunggu? Apa akibatnya jika kondisi tersebut terjadi pada basis data produksi saat banyak pengguna sedang mengakses sistem?**
 
-> Yang keliatan di pg_stat_activity nanti adalah proses dari Terminal 2 (yang jalanin ALTER TABLE) berstatus active tapi wait_event_type-nya Lock, alias dia lagi nunggu. Ini karena Terminal 1 masih megang transaksi yang belum di-commit (walaupun cuma SELECT), dan ALTER TABLE butuh lock eksklusif ke seluruh tabel jadi harus nunggu transaksi itu selesai dulu. Kalau ini kejadian di database produksi yang lagi rame dipake, dampaknya bisa parah karena bukan cuma ALTER TABLE-nya yang nunggu, tapi query-query lain ke tabel yang sama juga bisa ikut ngantre di belakangnya, sampai transaksi yang nyangkut di awal itu di-commit atau rollback — istilahnya seluruh sistem bisa kayak "hang" sesaat.
+> Dari hasil pengamatan, PID 63 yang menjalankan ALTER TABLE anggota ALTER COLUMN kategori TYPE varchar(30) berstatus active dengan wait_event_type Lock, artinya perintah ini menunggu. Penyebabnya PID 48 masih memegang transaksi yang belum di-commit (idle in transaction) pada tabel yang sama. Kalau kondisi ini terjadi di database produksi yang sedang banyak diakses, dampaknya bisa parah: bukan cuma ALTER TABLE yang tertahan, tapi semua query lain ke tabel anggota juga ikut mengantre di belakangnya sampai transaksi yang menggantung tadi selesai (commit atau rollback), sehingga sistem terasa seperti macet untuk sesaat.
 
 **7. Mengapa seed data tidak diletakkan langsung di dalam migrations/? Sebutkan satu perbedaan sifat antara migration dan seed data.**
 
@@ -136,10 +136,10 @@ https://github.com/elittaaasnrt-creator/TUGAS-MSBD-KELOMPOK4
 
 ### Daftar Commit Masing-Masing Anggota
 
-| Anggota                    | Commit |
-| -------------------------- | ------ |
-| Jelita Hati Sinurat        | otw    |
-| M. Ismail Dzakwan Rangkuti | otw    |
-| Agi Aginta Sembiring       | otw    |
-| M. Azkha Amorie            | otw    |
-| Syifa Nazira               | otw    |
+| Anggota                    | Commit                                                                                                                                                                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Jelita Hati Sinurat        | docs: mengisi domain, alasan pemilihan, dan jawaban Pertanyaan 1-7; Revise borrowing rules and penalties in laporan.md; Update README.md; merge pull request #2, #3, #4 (integrasi hasil kerja Syifa, Agi, Azkha ke main) |
+| M. Ismail Dzakwan Rangkuti | docs: perbarui nama anggota pada laporan p01; feat(p02): tambahkan migrasi V1 skema awal dan setup flyway; feat(p02): siapkan flyway, skema V1, dan bukti rebuild database proyek_dev                                     |
+| Agi Aginta Sembiring       | docs: menambahkan erd konseptual                                                                                                                                                                                          |
+| M. Azkha Amorie            | feat: nambahin evolusi skema V3-V5 kolom kuota anggota; feat: menambahkan eksperimen locking dan bukti pg_stat_activity                                                                                                   |
+| Syifa Nazira               | docs: menyusun kebutuhan data peminjaman alat lab; feat: add idempotent seed script and execution proof                                                                                                                   |

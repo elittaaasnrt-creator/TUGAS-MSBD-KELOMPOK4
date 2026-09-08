@@ -26,7 +26,15 @@ Tapi kenyataannya di eksekusi asli, nggak sesederhana itu. Hasil Q5 kami nunjuki
 
 ## Refleksi B - CTE dan Recursive CTE
 
-...
+**1. Pada Q7, mengapa recursive term hanya melihat baris yang baru dihasilkan pada iterasi sebelumnya, dan apa akibatnya jika ia melihat seluruh hasil?**
+
+Di PostgreSQL, bagian *recursive term* (query setelah `UNION ALL`) memang sengaja dirancang cuma ngelihat baris-baris baru yang baru aja dihasilkan di iterasi persis sebelumnya (biasa disebut *working table*). Tujuannya murni buat efisiensi komputasi. Kalau dia dibiarkan ngelihat *seluruh* hasil dari awal (dari *anchor* sampai iterasi terakhir), database bakal terus-terusan memproses ulang data lama yang sebenarnya udah beres dieksplorasi. Akibatnya bakal fatal: jumlah baris yang diproses mesin bakal meledak secara eksponensial di tiap putaran. Ini nggak cuma bikin query lambat banget, tapi *infinite processing* ini bakal menuh-menuhin memori sampai akhirnya server *crash* atau *hang*.
+
+**2. Kapan mengganti UNION ALL dengan UNION dapat menghentikan siklus, dan mengapa itu tetap bukan solusi yang baik?**
+
+Mengganti `UNION ALL` jadi `UNION` bisa ngeberhentiin siklus *hanya kalau* baris yang dihasilkan pas muter di siklus itu nilainya bener-bener sama persis (duplikat) dengan baris yang udah ada sebelumnya. Karena sifat dasar `UNION` itu otomatis ngebuang duplikat, baris berulang itu bakal dibuang, dan rekursi otomatis berhenti karena dianggap udah nggak ada "baris baru" lagi untuk diproses. 
+
+Tapi, ini **bukan solusi yang bagus**. Kenapa? Karena buat bisa nge-filter duplikat itu, `UNION` maksa database buat ngelakuin operasi *sorting* atau *hashing* ke *seluruh* baris yang udah terkumpul pada **setiap kali iterasi**. Kalau datanya besar, *overhead* komputasi ini bakal nyedot *resource* gila-gilaan dan bikin performa query anjlok parah. Jauh lebih aman dan optimal tetap pakai `UNION ALL`, tapi ditambahin logika pengaman manual kayak jejak array (pakai `ANY()`) atau pakai klausa `CYCLE` bawaan PostgreSQL. Ngecek isi satu array jauh lebih enteng daripada harus nge-*sort* keseluruhan hasil query.
 
 ## Refleksi C - Window Function
 
@@ -53,7 +61,7 @@ Tapi kenyataannya di eksekusi asli, nggak sesederhana itu. Hasil Q5 kami nunjuki
 | Nama                       | Kontribusi                                  | Commit               |
 | -------------------------- | ------------------------------------------- | -------------------- |
 | Jelita Hati Sinurat        | q00_setup.sql, Q1-Q5 (subquery), Refleksi A | (isi setelah commit) |
-| M. Dzakwan Ismail Rangkuti |                                             |                      |
+| M. Dzakwan Ismail Rangkuti | Q6-Q9 (CTE & Recursive CTE), Refleksi B     | (isi setelah commit) |
 | Agi Aginta Sembiring       |                                             |                      |
 | M. Azkha Amorie            |                                             |                      |
 | Syifa Nazira               |                                             |                      |

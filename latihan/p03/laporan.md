@@ -42,7 +42,22 @@ Tapi, ini **bukan solusi yang bagus**. Kenapa? Karena buat bisa nge-filter dupli
 
 ## Refleksi D - Agregasi dan Operasi Himpunan
 
-...
+1. Mengapa Perlu Menggunakan GROUPING()?
+Fungsinya adalah untuk membedakan nilai NULL asli pada database dengan NULL buatan dari proses ROLLUP.
+
+Tanpa GROUPING(), baris subtotal (yang diubah menjadi 'SEMUA') bakal terlihat sama persis dengan data biasa yang kolom rating-nya memang bernilai NULL. Hal ini terjadi karena ROLLUP secara bawaan menggunakan NULL untuk menandai baris subtotal maupun grand total.
+
+Pada hasil query yang kami jalankan, setiap kategori mendapatkan 1 baris 'SEMUA' dengan nilai is_subtotal_rating = 1. Ini membuktikan bahwa fungsi GROUPING() telah berhasil memisahkan kedua kondisi tersebut.
+
+2. Perbedaan FILTER vs CASE WHEN (Mengapa pada kasus kami hasilnya sama?)
+Hasilnya bisa identik karena pada versi CASE WHEN, kami tidak menggunakan klausa ELSE 0.
+
+Data yang tidak memenuhi syarat secara otomatis bernilai NULL, sehingga fungsi AVG() langsung mengabaikan nilai NULL tersebut — cara kerja ini sama persis dengan penggunaan FILTER.
+
+Perbedaannya baru akan terlihat jika klausa ditulis seperti ini:
+CASE WHEN length > 90 THEN length ELSE 0 END
+
+Jika menggunakan ELSE 0, baris data yang length <= 90 tetap dihitung sebagai angka 0 (bukan diabaikan). Akibatnya, jumlah pembagi saat kalkulasi rata-rata menjadi lebih besar, sehingga nilai AVG yang dihasilkan akan lebih kecil.
 
 ## Refleksi E - JSONB
 

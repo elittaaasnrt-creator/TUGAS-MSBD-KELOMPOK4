@@ -1,14 +1,13 @@
 # Laporan Latihan Kelompok Pertemuan 3
 
-## Anggota
-
-| Nama                       | NIM       |
-| -------------------------- | --------- |
-| Jelita Hati Sinurat        | 251402141 |
-| M. Ismail Dzakwan Rangkuti | 251402014 |
-| Agi Aginta Sembiring       | 251402059 |
-| M. Azkha Amorie            | 251402092 |
-| Syifa Nazira               | 251402126 |
+## Anggota dan Kontribusi
+| Nama | NIM | Kontribusi | Commit |
+|---|---|---|---|
+| Jelita Hati Sinurat | 251402141 | q00_setup.sql, Q1-Q5 (subquery), Refleksi A, README.md | (isi setelah commit) |
+| M. Ismail Dzakwan Rangkuti | 251402014 | | |
+| Agi Aginta Sembiring | 251402059 | | |
+| M. Azkha Amorie | 251402092 | | |
+| Syifa Nazira | 251402126 | | |
 
 ## Refleksi A - Subquery
 
@@ -22,42 +21,25 @@ Di Q4 kami, kolom yang dipakai di subquery adalah `inventory.film_id`, yang di s
 
 Q5 pakai subquery berkorelasi dengan `MAX(f2.rental_rate)` yang disaring `WHERE i2.store_id = i.store_id`, buat nyari tarif tertinggi per toko. Kalau dibayangin secara konsep, subquery ini kayak dihitung ulang satu kali buat tiap baris di query luar, soalnya dia nyambung ke `store_id` dari baris luar — jadi model sederhananya, subquery "dijalanin" sebanyak baris hasil join `film`-`inventory` yang lagi diperiksa (ribuan kali kalau dibayangin naif).
 
-Tapi kenyataannya di eksekusi asli, nggak sesederhana itu. Hasil Q5 kami nunjukin 500 baris kesebar di 2 toko (`store_id` 1 dan 2), dan semuanya tarifnya 4.99 — nilai tertinggi dari cuma 3 kemungkinan tarif yang ada di Pagila (0.99, 2.99, 4.99). Karena nilai `rental_rate` variasinya dikit banget, PostgreSQL nggak perlu literally ngitung ulang `MAX` satu-satu per baris; query planner-nya bisa ngenalin pola subquery berkorelasi ini terus diubah jadi bentuk join/agregasi yang lebih optimal (misalnya, ngitung `MAX(rental_rate)` per `store_id` sekali doang pakai hash aggregate, baru dijoinin balik) — ini bisa dicek pakai `EXPLAIN ANALYZE`. Jadi "sekali per baris luar" itu berguna buat ngerti _logika_ hasilnya (nilai pembandingnya emang beda-beda tergantung toko di baris itu), tapi bukan gambaran akurat soal berapa kali mesinnya beneran ngerjain — itu semua tergantung strategi optimasi planner, yang biasanya jauh lebih hemat daripada diulang mentah-mentah per baris.
+Tapi kenyataannya di eksekusi asli, nggak sesederhana itu. Hasil Q5 kami nunjukin 500 baris kesebar di 2 toko (`store_id` 1 dan 2), dan semuanya tarifnya 4.99 — nilai tertinggi dari cuma 3 kemungkinan tarif yang ada di Pagila (0.99, 2.99, 4.99). Karena nilai `rental_rate` variasinya dikit banget, PostgreSQL nggak perlu literally ngitung ulang `MAX` satu-satu per baris; query planner-nya bisa ngenalin pola subquery berkorelasi ini terus diubah jadi bentuk join/agregasi yang lebih optimal (misalnya, ngitung `MAX(rental_rate)` per `store_id` sekali doang pakai hash aggregate, baru dijoinin balik) — ini bisa dicek pakai `EXPLAIN ANALYZE`. Jadi "sekali per baris luar" itu berguna buat ngerti *logika* hasilnya (nilai pembandingnya emang beda-beda tergantung toko di baris itu), tapi bukan gambaran akurat soal berapa kali mesinnya beneran ngerjain — itu semua tergantung strategi optimasi planner, yang biasanya jauh lebih hemat daripada diulang mentah-mentah per baris.
 
 ## Refleksi B - CTE dan Recursive CTE
-
 ...
 
 ## Refleksi C - Window Function
-
 ...
 
 ## Refleksi D - Agregasi dan Operasi Himpunan
-
 ...
 
 ## Refleksi E - JSONB
-
 ...
 
 ## Temuan Q14
-
 ...
 
 ## Hasil R1
-
 ![Sepuluh baris pertama](r1_10_baris.png)
 
-## Kontribusi dan Commit
-
-| Nama                       | Kontribusi                                  | Commit               |
-| -------------------------- | ------------------------------------------- | -------------------- |
-| Jelita Hati Sinurat        | q00_setup.sql, Q1-Q5 (subquery), Refleksi A | (isi setelah commit) |
-| M. Ismail Dzakwan Rangkuti |                                             |                      |
-| Agi Aginta Sembiring       |                                             |                      |
-| M. Azkha Amorie            |                                             |                      |
-| Syifa Nazira               |                                             |                      |
-
 ## Tautan Merge Request
-
 ...

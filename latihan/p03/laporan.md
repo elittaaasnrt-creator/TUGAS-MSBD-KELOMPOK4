@@ -53,7 +53,7 @@ Tapi kenyataannya di eksekusi asli, nggak sesederhana itu. Hasil Q5 kami nunjuki
 | Nama                       | Kontribusi                                  | Commit               |
 | -------------------------- | ------------------------------------------- | -------------------- |
 | Jelita Hati Sinurat        | q00_setup.sql, Q1-Q5 (subquery), Refleksi A | (isi setelah commit) |
-| M. Ismail Dzakwan Rangkuti |                                             |                      |
+| M. Dzakwan Ismail Rangkuti |                                             |                      |
 | Agi Aginta Sembiring       |                                             |                      |
 | M. Azkha Amorie            |                                             |                      |
 | Syifa Nazira               |                                             |                      |

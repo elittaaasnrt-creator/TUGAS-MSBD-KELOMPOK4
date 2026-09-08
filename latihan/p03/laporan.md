@@ -5,7 +5,7 @@
 | Nama                       | NIM       |
 | -------------------------- | --------- |
 | Jelita Hati Sinurat        | 251402141 |
-| M. Ismail Dzakwan Rangkuti | 251402014 |
+| M. Dzakwan Ismail Rangkuti | 251402014 |
 | Agi Aginta Sembiring       | 251402059 |
 | M. Azkha Amorie            | 251402092 |
 | Syifa Nazira               | 251402126 |

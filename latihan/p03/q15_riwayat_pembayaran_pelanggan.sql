@@ -1,3 +1,15 @@
+-- Diminta: untuk setiap pelanggan, tampilkan urutan pembayaran, jarak
+-- hari sejak pembayaran sebelumnya, dan total belanja pelanggan sebagai
+-- kolom pendamping pada setiap baris.
+-- Dipilih: PARTITION BY customer_id untuk semua window function; ROW_NUMBER
+-- untuk urutan pembayaran, LAG untuk jarak hari dari pembayaran sebelumnya,
+-- dan SUM dengan frame seluruh partisi (ROWS BETWEEN UNBOUNDED PRECEDING
+-- AND UNBOUNDED FOLLOWING) untuk total belanja yang sama di semua baris
+-- pelanggan tersebut.
+-- Alternatif: subquery terpisah untuk menghitung total belanja per
+-- pelanggan lalu di-JOIN balik; tidak dipilih karena window function bisa
+-- menghasilkan kolom pendamping tanpa join tambahan, dalam satu SELECT.
+
 SELECT 
     p.payment_id,
     p.customer_id,

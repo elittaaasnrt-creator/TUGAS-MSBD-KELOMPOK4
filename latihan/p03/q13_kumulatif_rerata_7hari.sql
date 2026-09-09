@@ -1,3 +1,12 @@
+-- Diminta: tampilkan omzet harian beserta total kumulatif sejak hari
+-- pertama dan rata-rata bergerak tujuh hari.
+-- Dipilih: dua window function dengan frame ROWS eksplisit berbeda -
+-- ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW untuk kumulatif,
+-- dan ROWS BETWEEN 6 PRECEDING AND CURRENT ROW untuk rata-rata 7 hari.
+-- Alternatif: memakai frame RANGE default (tanpa klausa ROWS); tidak
+-- dipilih karena RANGE menyertakan baris dengan nilai ORDER BY yang sama
+-- (peer), sehingga hasilnya bisa salah kalau ada tanggal duplikat.
+
 WITH omzet_harian AS (
     SELECT 
         DATE(payment_date) AS tanggal,

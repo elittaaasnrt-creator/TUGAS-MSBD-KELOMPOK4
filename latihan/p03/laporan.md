@@ -46,7 +46,23 @@ Tapi, ini **bukan solusi yang bagus**. Kenapa? Karena buat bisa nge-filter dupli
 
 ## Refleksi E - JSONB
 
-...
+**Dari nomor transaksi, status, jumlah, dan identitas pelanggan di dalam `payload`, mana yang sebaiknya dipromosikan menjadi kolom relasional dengan constraint dan mana yang tepat tetap berada di JSON? Berikan alasan untuk setiap pilihan.**
+
+Properti di dalam `payload` yang **sebaiknya dipromosikan menjadi kolom relasional tersendiri**:
+
+* **Nomor Transaksi (`trx`)**:
+Harus dipromosikan menjadi kolom relasional (misal `nomor_transaksi text`) dengan constraint `NOT NULL` dan `UNIQUE`. Nomor transaksi merupakan entitas pengenal utama (*business key*) yang sering dijadikan acuan pencarian, *join*, dan pelaporan. Memindahkannya ke kolom relasional mencegah duplikasi transaksi dan mempercepat query tanpa bergantung pada ekstraksi JSONB.
+* **Identitas Pelanggan (`pelanggan.id`)**:
+Harus dipromosikan menjadi kolom relasional (misal `pelanggan_id int`) dengan constraint `FOREIGN KEY` yang merujuk ke tabel `pelanggan(id)`. Hal ini krusial untuk menjaga integritas referensial (*referential integrity*), memastikan bahwa notifikasi hanya masuk untuk pelanggan yang terdaftar, serta mempermudah operasi *JOIN* antar-tabel relasional.
+* **Jumlah Pembayaran (`jumlah`)**:
+Sebaiknya dipromosikan menjadi kolom relasional (misal `jumlah numeric(12,2)`) dengan constraint `NOT NULL` dan `CHECK (jumlah >= 0)`. Data keuangan membutuhkan tipe data presisi tinggi dan validasi batas agar tidak ada data bernilai negatif atau berformat salah yang lolos ke database.
+* **Status Transaksi (`status`)**:
+Sebaiknya dipromosikan menjadi kolom relasional (misal `status text` atau tipe *ENUM*) dengan constraint `CHECK (status IN ('lunas', 'gagal', 'pending'))` atau constraint `NOT NULL`. Karena status transaksi sangat sering dijadikan filter klausa `WHERE` dan pengelompokan laporan, penanganan secara relasional memudahkan pembuatan *index* B-Tree biasa serta menjaga konsistensi nilai status yang diizinkan.
+
+Properti yang **tepat tetap berada di dalam JSONB**:
+
+* **Detail Kontak/Metode Komunikasi (`kontak`)**:
+Properti ini sangat tepat dipertahankan di dalam dokumen JSONB. Nilai elemen `kontak` bersifat dinamis (satu transaksi bisa memiliki banyak kontak seperti WhatsApp dan e-mail, namun transaksi lain bisa jadi tidak memiliki kontak sama sekali). Menyimpannya sebagai struktur *array/object* fleksibel di JSONB menghindarkan kita dari keharusan membuat tabel *junction* tambahan untuk data yang sifatnya pelengkap, sekaligus tetap mudah diakses menggunakan fungsi bawaan seperti `jsonb_array_elements`.
 
 ## Temuan Q14
 

@@ -80,7 +80,7 @@ Properti ini sangat tepat dipertahankan di dalam dokumen JSONB. Nilai elemen `ko
 | M. Dzakwan Ismail Rangkuti | Q6-Q9 (CTE & Recursive CTE), Refleksi B     | (isi setelah commit) |
 | Agi Aginta Sembiring       |                                             |                      |
 | M. Azkha Amorie            |                                             |                      |
-| Syifa Nazira               |                                             |                      |
+| Syifa Nazira               | Q18–Q20 (JSONB), Refleksi E                 |                      |
 
 ## Tautan Merge Request
 

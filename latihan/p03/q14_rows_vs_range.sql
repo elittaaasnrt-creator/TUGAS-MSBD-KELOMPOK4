@@ -1,3 +1,13 @@
+-- Diminta: menjalankan ulang Q13 tanpa klausa frame (memakai RANGE
+-- default), lalu membandingkan hasilnya dengan Q13 dan mencatat jumlah
+-- tanggal yang berbeda.
+-- Dipilih: query yang sama seperti Q13 tapi klausa ROWS dihilangkan,
+-- dibandingkan dengan hasil Q13 memakai EXCEPT untuk mencari baris yang
+-- nilainya berbeda antara kedua versi.
+-- Alternatif: FULL JOIN kedua hasil lalu bandingkan kolom satu-satu;
+-- tidak dipilih karena EXCEPT lebih ringkas untuk mencari selisih baris
+-- tanpa perlu menulis kondisi JOIN dan perbandingan kolom manual.
+
 WITH omzet_harian AS (
     SELECT 
         DATE(payment_date) AS tanggal,

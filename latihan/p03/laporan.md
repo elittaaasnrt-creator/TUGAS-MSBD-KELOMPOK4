@@ -38,7 +38,24 @@ Tapi, ini **bukan solusi yang bagus**. Kenapa? Karena buat bisa nge-filter dupli
 
 ## Refleksi C - Window Function
 
-...
+Pertanyaan Reflektif C (Q13–Q15)
+
+1. Berapa tanggal yang berbeda pada Q14 dan sifat data apa yang menyebabkannya?
+   - Jumlah Tanggal Berbeda: Terdapat 25 tanggal (dari total 32 tanggal transaksi di Pagila) yang menghasilkan nilai berbeda.
+   - Penyebab Utama: 
+     - Tanpa klausa frame pada AVG, PostgreSQL memakai rentang default RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW. Ini mengubah logika dari rata-rata bergerak 7 hari (hanya 7 baris terakhir) menjadi rata-rata kumulatif (seluruh baris dari awal hingga hari H).
+     - Mulai hari ke-8 transaksi, rata-rata bergerak 7 hari melepaskan nilai hari-hari lama dari perhitungan, sedangkan rata-rata kumulatif terus memperhitungkan seluruh data awal. Hal inilah yang membuat angkanya berbeda pada tanggal-tanggal setelah minggu pertama.
+
+2. Skenario Laporan Keuangan Resmi & Mengapa Kesalahan Frame Sulit Ditemukan:
+   - Versi yang Benar: Versi Q13 yang memakai frame eksplisit (ROWS BETWEEN 6 PRECEDING AND CURRENT ROW).
+   - Alasan Kesalahan Sulit Dideteksi:
+     - Sintaks Valid: Query tanpa klausa frame tetap tereksekusi tanpa menghasilkan galat (error).
+     - Data Terisi Mulus: Hasil query tetap mengeluarkan angka rasional tanpa NULL.
+     - Mirip di Awal: Pada 7 hari pertama, hasil rata-rata bergerak dan rata-rata kumulatif identik atau sangat dekat. Pengujian dengan sampel data kecil (unit test) sering kali lolos dan gagal mendeteksi deviasi logika ini.
+
+3. Efek Penambahan ORDER BY di dalam OVER pada Q15 Tanpa Frame Eksplisit:
+   - Jika ORDER BY p.payment_date ditambahkan ke dalam klausa OVER (PARTITION BY p.customer_id) pada kolom total_belanja_pelanggan, PostgreSQL secara otomatis menerapkan frame default RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW.
+   - Dampaknya: Kolom total_belanja_pelanggan tidak lagi menampilkan total akumulasi belanja keseluruhan pelanggan (grand total), melainkan berubah menjadi running total / akumulasi kumulatif belanja bertahap hingga transaksi tersebut.
 
 ## Refleksi D - Agregasi dan Operasi Himpunan
 

@@ -55,7 +55,11 @@ _(diisi)_
 
 ### Refleksi E (Syifa)
 
-_(diisi)_
+* **Jarak Rilis yang Diusulkan:** 1 hingga 2 minggu (sesuai siklus *sprint* atau *soak period* di lingkungan produksi).
+* **Bukti yang Harus Dikumpulkan Sebelum Menjalankan 0046:**
+  1. **Log & Audit Akses Aplikasi:** Memastikan seluruh query dari aplikasi lama sudah dialihkan 100% menggunakan View Fasad (`v_film_fasad`) dan tidak ada lagi *service* atau query yang membaca langsung kolom `lab4.film.rental_rate`.
+  2. **Audit Konsistensi Data:** Nilai *count mismatch* antara tabel `lab4.film` dan `lab4.harga_film` konsisten bernilai **0** selama masa pemantauan (*monitoring period*).
+  3. **Backup/Snapshot Terverifikasi:** Adanya *backup database* yang valid dan telah diuji pemulihannya tepat sebelum `0046` dieksekusi. Hal ini penting karena skrip `.down.sql` pada `0046` hanya bisa membuat ulang struktur kolom `rental_rate`, tetapi **tidak dapat mengembalikan isi datanya secara otomatis**.
 
 ---
 
@@ -73,8 +77,10 @@ _(diisi)_
 
 ## Migrasi dan Commit
 
-- **Struktur `migrations/`:** _(screenshot + penjelasan, diisi Syifa)_
+- **Struktur `migrations/`:** 
+![Struktur Folder Migrations](./struktur_migrations.png)
+  Seluruh proses migrasi skema `lab4.film` ke `lab4.harga_film` diorganisir ke dalam 6 pasang file migrasi berversi (`.up.sql` dan `.down.sql`) pada folder `migrations/` mencakup fase *Expand*, *Migrate*, hingga *Contract*.
 - **Tautan Merge Request:** _(diisi Jelita setelah semua branch digabung)_
 - **Catatan sesi pembaca (Q8, Q20):**
   - **Q8 (Mael):** Berdasarkan pengujian dua sesi terminal terpisah, perintah `REFRESH MATERIALIZED VIEW` biasa mengambil *Exclusive Lock* yang memblokir query `SELECT` dari sesi pembaca hingga proses refresh selesai. Sebaliknya, `REFRESH MATERIALIZED VIEW CONCURRENTLY` memungkinkan sesi pembaca untuk tetap mengakses snapshot data lama secara instan tanpa tertahan (*non-blocking*) selagi proses perbaruan data berlangsung di latar belakang.
-  - **Q20 (Syifa):** _(diisi)_
+  - **Q20 (Syifa):** Pada fase *Contract*, View Fasad (`v_film_fasad`) diaktifkan untuk menjaga kompatibilitas aplikasi lama. Apabila sesi pembaca mengalami kegagalan (misalnya query error karena kolom `rental_rate` di tabel utama di-drop sebelum View Fasad siap), penyebab utamanya adalah **urutan eksekusi yang salah**—kolom lama dihapus sebelum pembaca dialihkan ke View Fasad. Urutan yang benar adalah: pasang View Fasad $\rightarrow$ alihkan aplikasi pembaca ke View $\rightarrow$ baru drop kolom lama (`rental_rate`).

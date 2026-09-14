@@ -1,0 +1,1 @@
+DROP VIEW IF EXISTS lab4.v_film_fasad;

@@ -79,7 +79,6 @@ _(diisi)_
 
 - **Struktur `migrations/`:** 
 ![Struktur Folder Migrations](./struktur_migrations.png)
-
   Seluruh proses migrasi skema `lab4.film` ke `lab4.harga_film` diorganisir ke dalam 6 pasang file migrasi berversi (`.up.sql` dan `.down.sql`) pada folder `migrations/` mencakup fase *Expand*, *Migrate*, hingga *Contract*.
 - **Tautan Merge Request:** _(diisi Jelita setelah semua branch digabung)_
 - **Catatan sesi pembaca (Q8, Q20):**

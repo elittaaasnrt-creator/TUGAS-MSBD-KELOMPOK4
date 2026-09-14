@@ -55,11 +55,11 @@ _(diisi)_
 
 ### Refleksi E (Syifa)
 
-* **Jarak Rilis yang Diusulkan:** 1 hingga 2 minggu (sesuai siklus *sprint* atau *soak period* di lingkungan produksi).
-* **Bukti yang Harus Dikumpulkan Sebelum Menjalankan 0046:**
-  1. **Log & Audit Akses Aplikasi:** Memastikan seluruh query dari aplikasi lama sudah dialihkan 100% menggunakan View Fasad (`v_film_fasad`) dan tidak ada lagi *service* atau query yang membaca langsung kolom `lab4.film.rental_rate`.
-  2. **Audit Konsistensi Data:** Nilai *count mismatch* antara tabel `lab4.film` dan `lab4.harga_film` konsisten bernilai **0** selama masa pemantauan (*monitoring period*).
-  3. **Backup/Snapshot Terverifikasi:** Adanya *backup database* yang valid dan telah diuji pemulihannya tepat sebelum `0046` dieksekusi. Hal ini penting karena skrip `.down.sql` pada `0046` hanya bisa membuat ulang struktur kolom `rental_rate`, tetapi **tidak dapat mengembalikan isi datanya secara otomatis**.
+1. **Jarak Rilis yang Diusulkan:** 1 hingga 2 minggu (sesuai siklus *sprint* atau *soak period* di lingkungan produksi).
+2. **Bukti yang Harus Dikumpulkan Sebelum Menjalankan 0046:**
+  * **Log & Audit Akses Aplikasi:** Memastikan seluruh query dari aplikasi lama sudah dialihkan 100% menggunakan View Fasad (`v_film_fasad`) dan tidak ada lagi *service* atau query yang membaca langsung kolom `lab4.film.rental_rate`.
+  * **Audit Konsistensi Data:** Nilai *count mismatch* antara tabel `lab4.film` dan `lab4.harga_film` konsisten bernilai **0** selama masa pemantauan (*monitoring period*).
+  * **Backup/Snapshot Terverifikasi:** Adanya *backup database* yang valid dan telah diuji pemulihannya tepat sebelum `0046` dieksekusi. Hal ini penting karena skrip `.down.sql` pada `0046` hanya bisa membuat ulang struktur kolom `rental_rate`, tetapi **tidak dapat mengembalikan isi datanya secara otomatis**.
 
 ---
 
@@ -79,6 +79,7 @@ _(diisi)_
 
 - **Struktur `migrations/`:** 
 ![Struktur Folder Migrations](./struktur_migrations.png)
+
   Seluruh proses migrasi skema `lab4.film` ke `lab4.harga_film` diorganisir ke dalam 6 pasang file migrasi berversi (`.up.sql` dan `.down.sql`) pada folder `migrations/` mencakup fase *Expand*, *Migrate*, hingga *Contract*.
 - **Tautan Merge Request:** _(diisi Jelita setelah semua branch digabung)_
 - **Catatan sesi pembaca (Q8, Q20):**

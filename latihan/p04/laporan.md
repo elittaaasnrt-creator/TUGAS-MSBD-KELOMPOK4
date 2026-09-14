@@ -1,10 +1,28 @@
 ### Q6
 
-_(diisi Mael)_
+**Pesan Galat Sebelum Refresh:**
+```
+ERROR: materialized view "ringkasan_akses" has not been populated
+HINT: Use the REFRESH MATERIALIZED VIEW command.
+```
+
+**Durasi REFRESH biasa:**
+```
+Time: 494.398 ms
+```
 
 ### Q7
 
-_(diisi Mael)_
+**Pesan Galat Sebelum Refresh:**
+```
+ERROR: cannot refresh materialized view "lab4.ringkasan_akses" concurrently
+HINT: Create a unique index with no WHERE clause on one or more columns of the materialized view.
+```
+
+**Durasi REFRESH CONCURRENTLY:**
+```
+Time: 572.396 ms
+```
 
 ---
 
@@ -20,7 +38,12 @@ Contoh konkret dari pengamatan Q1–Q4: kasus di Q2 adalah yang paling berisiko 
 
 ### Refleksi B (Mael)
 
-_(diisi)_
+*Trade-off* utama Materialized View terletak pada **kecepatan baca vs kebaruan data (*staleness*)**. Materialized View menyimpan hasil query agregasi secara fisik di disk sehingga pembacaan data jauh lebih cepat daripada menghitung ulang query dari awal. Namun, datanya bersifat statis (*stale*) dan tidak akan diperbarui secara otomatis ketika ada perubahan pada tabel sumber sampai perintah `REFRESH` dijalankan. Penggunaan `REFRESH` biasa memerlukan *Exclusive Lock* yang memblokir transaksi pembaca, sementara `REFRESH CONCURRENTLY` memungkinkan akses non-blocking bagi pembaca meski membutuhkan *Unique Index* serta waktu pemrosesan yang sedikit lebih lama (Q6: 494.398 ms vs Q7: 572.396 ms).
+
+**Kompromi Konkret yang Diusulkan:**
+1. **Batas Kebasian Data (*Staleness Limit*):** Menyepakati batas toleransi kebasian data maksimal 1 jam untuk laporan keuangan internal, dan menyediakan akses query langsung ke tabel utama jika laporan real-time benar-benar mendesak.
+2. **Jadwal Refresh:** Menjalankan `REFRESH MATERIALIZED VIEW CONCURRENTLY` secara otomatis menggunakan penjadwal (*cron job* atau *pg_cron*) setiap 1 jam pada periode beban kerja rendah.
+3. **Penanganan Kegagalan:** Menerapkan logika *retry* otomatis hingga 3 kali jika perintah refresh gagal. Bila kegagalan berlanjut, sistem akan memicu alarm notifikasi ke tim DB Admin sambil mempertahankan snapshot Materialized View versi terakhir agar aplikasi pembaca tidak terganggu.
 
 ### Refleksi C (Agi)
 
@@ -38,18 +61,20 @@ _(diisi)_
 
 ## Ringkasan Waktu
 
-| Tugas | Waktu | Penafsiran |
-| ----- | ----: | ---------- |
-| Q5    |       |            |
-| Q6    |       |            |
-| Q7    |       |            |
-| Q12   |       |            |
-| Q13   |       |            |
+| Tugas |    Waktu   | Penafsiran                                                                                             |
+| ----- | ---------: | ------------------------------------------------------------------------------------------------------ |
+| Q5    | 441.836 ms | Query dasar membaca dan me-aggregate langsung 500.000 baris data dari tabel jejak_akses.               |
+| Q6    | 494.398 ms | REFRESH memuat hasil agregasi ke dalam Materialized View dengan penguncian eksklusif (Exclusive Lock). |
+| Q7    | 572.396 ms | REFRESH CONCURRENTLY membutuhkan waktu sedikit lebih lama karena PostgreSQL perlu membandingkan selisih data lama dan baru menggunakan indeks unik secara non-blocking.|
+| Q12   |            |            |
+| Q13   |            |            |
 
 ---
 
 ## Migrasi dan Commit
 
-- Struktur `migrations/`: _(screenshot + penjelasan, diisi Syifa)_
-- Tautan Merge Request: _(diisi Jelita setelah semua branch digabung)_
-- Catatan sesi pembaca (Q8, Q20): _(diisi oleh Mael dan Syifa)_
+- **Struktur `migrations/`:** _(screenshot + penjelasan, diisi Syifa)_
+- **Tautan Merge Request:** _(diisi Jelita setelah semua branch digabung)_
+- **Catatan sesi pembaca (Q8, Q20):**
+  - **Q8 (Mael):** Berdasarkan pengujian dua sesi terminal terpisah, perintah `REFRESH MATERIALIZED VIEW` biasa mengambil *Exclusive Lock* yang memblokir query `SELECT` dari sesi pembaca hingga proses refresh selesai. Sebaliknya, `REFRESH MATERIALIZED VIEW CONCURRENTLY` memungkinkan sesi pembaca untuk tetap mengakses snapshot data lama secara instan tanpa tertahan (*non-blocking*) selagi proses perbaruan data berlangsung di latar belakang.
+  - **Q20 (Syifa):** _(diisi)_

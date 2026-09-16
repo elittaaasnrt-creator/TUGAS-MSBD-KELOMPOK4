@@ -47,41 +47,16 @@ Contoh konkret dari pengamatan Q1–Q4: kasus di Q2 adalah yang paling berisiko 
 
 ### Refleksi C (Agi)
 
-1. Kapan trigger per baris tetap lebih tepat walaupun lebih lambat?
+1. **Kapan trigger per baris tetap lebih tepat walaupun lebih lambat?**  
+   Trigger per baris lebih tepat ketika setiap baris membutuhkan perlakuan atau logika yang berbeda. Contohnya, jika setiap perubahan harga harus dihitung berdasarkan kondisi masing-masing film atau membutuhkan pemeriksaan nilai `OLD` dan `NEW` secara individual, `FOR EACH ROW` lebih sesuai. Jadi walaupun biasanya lebih mahal untuk `UPDATE` massal, trigger per baris memberikan kontrol yang lebih detail terhadap setiap record.
 
-Trigger per baris lebih tepat ketika setiap baris membutuhkan perlakuan atau logika yang berbeda.
-Contohnya, jika setiap perubahan harga harus dihitung berdasarkan kondisi masing-masing film atau membutuhkan pemeriksaan nilai OLD dan NEW secara individual, FOR EACH ROW lebih sesuai.
-Jadi walaupun biasanya lebih mahal untuk UPDATE massal, trigger per baris memberikan kontrol yang lebih detail terhadap setiap record.
+2. **Sebutkan satu kemampuan yang tidak dimiliki trigger pernyataan.**  
+   Trigger pernyataan tidak dapat secara langsung menjalankan fungsi satu kali untuk setiap baris. Dengan `FOR EACH STATEMENT`, fungsi hanya dijalankan satu kali untuk seluruh perintah `UPDATE`. Sebaliknya, `FOR EACH ROW` dapat mengakses `OLD` dan `NEW` untuk setiap baris secara individual.
 
-2. Sebutkan satu kemampuan yang tidak dimiliki trigger pernyataan.
-
-Trigger pernyataan tidak dapat secara langsung menjalankan fungsi satu kali untuk setiap baris.
-Dengan:
-FOR EACH STATEMENT
-fungsi hanya dijalankan satu kali untuk seluruh perintah UPDATE.
-Sebaliknya:
-FOR EACH ROW
-dapat mengakses:
-OLD
-NEW
-untuk setiap baris secara individual.
-
-3. Mengapa mengirim surel langsung dari trigger buruk ketika transaksi di-rollback?
-
-Karena trigger berjalan sebagai bagian dari transaksi database.
-Misalnya:
-
-UPDATE
-  ↓
-Trigger mengirim email
-  ↓
-Transaksi gagal / ROLLBACK
-
-Database akan membatalkan perubahan datanya, tetapi email yang sudah dikirim tidak ikut dibatalkan.
-Akibatnya penerima bisa mendapatkan email yang mengatakan perubahan terjadi, padahal perubahan tersebut akhirnya tidak tersimpan di database.
-Lebih aman jika trigger hanya mencatat event ke tabel/outbox, kemudian sistem lain mengirim email setelah transaksi berhasil COMMIT.
-
-
+3. **Mengapa mengirim surel langsung dari trigger buruk ketika transaksi di-rollback?**  
+   Karena trigger berjalan sebagai bagian dari transaksi database. Misalnya:  
+   `UPDATE` $\rightarrow$ Trigger mengirim email $\rightarrow$ Transaksi gagal / `ROLLBACK`  
+   Database akan membatalkan perubahan datanya, tetapi email yang sudah dikirim tidak ikut dibatalkan. Akibatnya penerima bisa mendapatkan email yang mengatakan perubahan terjadi, padahal perubahan tersebut akhirnya tidak tersimpan di database. Lebih aman jika trigger hanya mencatat event ke tabel/outbox, kemudian sistem lain mengirim email setelah transaksi berhasil `COMMIT`.
 
 ### Refleksi D (Azkha)
 

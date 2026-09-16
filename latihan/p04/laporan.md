@@ -51,7 +51,9 @@ _(diisi)_
 
 ### Refleksi D (Azkha)
 
-_(diisi)_
+Jika aturan periode harga dibuat menggunakan trigger yang melakukan pengecekan sebelum INSERT, terdapat kemungkinan dua transaksi berjalan secara bersamaan. Misalnya transaksi A dan transaksi B sama-sama memeriksa tabel pada saat belum melihat data transaksi lainnya. Keduanya dapat menganggap periode yang akan dimasukkan masih tersedia, kemudian keduanya melakukan INSERT, sehingga periode yang seharusnya tidak boleh tumpang tindih akhirnya bisa masuk.
+
+EXCLUDE lebih tepat untuk aturan ini karena PostgreSQL menegakkan larangan konflik sebagai constraint pada database, bukan hanya sebagai pemeriksaan biasa sebelum INSERT. Dengan demikian aturan overlap menjadi bagian dari mekanisme integritas data dan PostgreSQL dapat menangani konflik antar transaksi secara aman.
 
 ### Refleksi E (Syifa)
 

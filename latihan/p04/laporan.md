@@ -60,9 +60,18 @@ Contoh konkret dari pengamatan Q1–Q4: kasus di Q2 adalah yang paling berisiko 
 
 ### Refleksi D (Azkha)
 
-Jika aturan periode harga dibuat menggunakan trigger yang melakukan pengecekan sebelum INSERT, terdapat kemungkinan dua transaksi berjalan secara bersamaan. Misalnya transaksi A dan transaksi B sama-sama memeriksa tabel pada saat belum melihat data transaksi lainnya. Keduanya dapat menganggap periode yang akan dimasukkan masih tersedia, kemudian keduanya melakukan INSERT, sehingga periode yang seharusnya tidak boleh tumpang tindih akhirnya bisa masuk.
+> **Analisis Kelemahan Trigger vs. Keunggulan Constraint `EXCLUDE` dalam Menangani Overlap Periode Data**
+Jika aturan validasi periode harga hanya dibuat menggunakan **Trigger** yang melakukan pengecekan sebelum `INSERT`, terdapat risiko *race condition* saat dua transaksi berjalan secara bersamaan.
 
-EXCLUDE lebih tepat untuk aturan ini karena PostgreSQL menegakkan larangan konflik sebagai constraint pada database, bukan hanya sebagai pemeriksaan biasa sebelum INSERT. Dengan demikian aturan overlap menjadi bagian dari mekanisme integritas data dan PostgreSQL dapat menangani konflik antar transaksi secara aman.
+Sebagai contoh:
+1. **Transaksi A** dan **Transaksi B** membaca tabel pada milidetik yang sama sebelum salah satu dari mereka menyelesaikan *commit*.
+2. Keduanya menganggap periode waktu yang akan dimasukkan masih kosong/tersedia karena data milik transaksi lawan belum terlihat.
+3. Keduanya lalu melanjutkan proses `INSERT`, sehingga rentang waktu yang seharusnya tidak boleh tumpang tindih akhirnya lolos masuk ke database.
+
+#### Mengapa Constraint `EXCLUDE` Lebih Tepat?
+Constraint `EXCLUDE` jauh lebih andal untuk aturan bisnis ini karena:
+* **Integritas Tingkat Database:** PostgreSQL menegakkan larangan konflik secara langsung sebagai *constraint* resmi pada mesin database lewat struktur indeks (seperti GiST), bukan sekadar logika pengecekan biasa di level trigger.
+* **Keamanan Konkurensi:** PostgreSQL secara otomatis mengunci dan menangani konflik antar-transaksi yang berjalan bersamaan. Saat ada dua transaksi yang berbenturan, PostgreSQL akan langsung membatalkan (*rollback*) salah satu transaksi secara aman.
 
 ### Refleksi E (Syifa)
 
@@ -81,8 +90,8 @@ EXCLUDE lebih tepat untuk aturan ini karena PostgreSQL menegakkan larangan konfl
 | Q5    | 441.836 ms | Query dasar membaca dan me-aggregate langsung 500.000 baris data dari tabel jejak_akses.               |
 | Q6    | 494.398 ms | REFRESH memuat hasil agregasi ke dalam Materialized View dengan penguncian eksklusif (Exclusive Lock). |
 | Q7    | 572.396 ms | REFRESH CONCURRENTLY membutuhkan waktu sedikit lebih lama karena PostgreSQL perlu membandingkan selisih data lama dan baru menggunakan indeks unik secara non-blocking.|
-| Q12   |            |            |
-| Q13   |            |            |
+| Q12   | 75.605 ms  | Trigger level baris (*FOR EACH ROW*) dieksekusi 10.000 kali (`calls=10000`), memberikan *overhead* tambahan sebesar 45.731 ms dibandingkan saat trigger dimatikan (32.363 ms). |
+| Q13   | 55.664 ms  | Trigger level pernyataan (*FOR EACH STATEMENT*) lebih efisien untuk operasi bulk/massal karena fungsi trigger hanya dipanggil 1 kali (`calls=1`) untuk seluruh 10.000 baris. |
 
 ---
 

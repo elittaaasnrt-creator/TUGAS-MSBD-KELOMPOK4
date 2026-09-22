@@ -1,0 +1,1 @@
+ALTER TABLE lab4.film ADD COLUMN IF NOT EXISTS rental_rate numeric(4,2);

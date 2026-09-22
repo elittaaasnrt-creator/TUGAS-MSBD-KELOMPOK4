@@ -1,0 +1,1 @@
+DELETE FROM lab4.harga_film WHERE wilayah = 'ID';

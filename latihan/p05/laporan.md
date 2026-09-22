@@ -68,34 +68,34 @@ Informasi yang hilang: nama constraint asli, tabel/kolom yang dilanggar, dan nil
 ### Q6–Q9 _(diisi Agi)_
 ...
 
-#### Q10: Executing Parameterized SELECT
+### Q10 — Executing Parameterized SELECT
 - **Deskripsi**: Menggunakan pemanggilan parameter `%s` agar pengemudian query aman dari injeksi SQL.
 - **Hasil Tangkapan**:
   - `(1, 'MARY', 'SMITH')`
 
-#### Q11: Preventing SQL Injection
+### Q11 — Preventing SQL Injection
 - **Deskripsi**: Menguji payload `SMITH' OR '1'='1` dengan query berparameter.
 - **Hasil**:
   - `Jumlah baris ditemukan: 0` (Terbukti aman karena payload diperlakukan sebagai nilai string harfiah, bukan potongan kode SQL).
 
-#### Q12: Dynamic Identifiers using `sql.Identifier`
+### Q12 — Dynamic Identifiers using `sql.Identifier`
 - **Deskripsi**: Mengamankan nama kolom dinamis mengutamakan allow-list dan `psycopg.sql.Identifier`.
 - **Hasil Query**:
   - `[(375, 'AARON'), (367, 'ADAM'), (525, 'ADRIAN')]`
 
-#### Q13: Application-Side Transaction Rollback
+### Q13 — Application-Side Transaction Rollback
 - **Deskripsi**: Membuktikan bahwa exception yang dilemparkan di dalam blok transaksi Python akan secara otomatis memicu `ROLLBACK` oleh driver psycopg.
 - **Bukti Eksperimen**:
   - Baris `rental_tx` sebelum exception: `1`
   - Baris `rental_tx` sesudah exception: `1` *(Perubahan dalam transaksi tidak tersimpan/ter-rollback)*.
 
-#### Q14: Managing Connections with ConnectionPool
+### Q14 — Managing Connections with ConnectionPool
 - **Deskripsi**: Mengelola koneksi database secara efisien menggunakan `ConnectionPool` untuk melayani 5 permintaan berurutan.
 - **Statistik Pool**:
   - Total koneksi aktif: `2` (`pool_min=2`, `pool_max=2`)
   - Ditangani oleh Backend PID: `1070` dan `1071` secara bergantian.
 
-#### Q15: Monitoring Idle in Transaction State
+### Q15 — Monitoring Idle in Transaction State
 - **Deskripsi**: Membuka koneksi transaksi lalu mendiamkannya tanpa `COMMIT`/`ROLLBACK` untuk memicu status `idle in transaction`.
 - **Bukti Tangkapan `pg_stat_activity`**:
   ```text

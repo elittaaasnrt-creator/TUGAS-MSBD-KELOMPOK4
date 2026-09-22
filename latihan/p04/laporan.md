@@ -7,7 +7,7 @@
 | Nama                       | NIM       | Kontribusi                                             | Commit |
 | -------------------------- | --------- | ------------------------------------------------------ | ------ |
 | Jelita Hati Sinurat        | 251402141 | q00_setup.sql, Q1–Q4 (View & Check Option), Refleksi A |        |
-| M. Dzakwan Rangkuti (Mael) | 251402014 | Q5–Q8 (Materialized View), Refleksi B                  |        |
+| M. Dzakwan Ismail Rangkuti | 251402014 | Q5–Q8 (Materialized View), Refleksi B                  |        |
 | Agi Aginta Sembiring       | 251402059 | Q9–Q13 (Trigger Audit), Refleksi C                     |        |
 | M. Azkha Amorie            | 251402092 | Q14–Q17 (Constraint), Refleksi D                       |        |
 | Syifa Nazira               | 251402126 | Q18–Q21 (Expand–Contract) + migrations/, Refleksi E    |        |

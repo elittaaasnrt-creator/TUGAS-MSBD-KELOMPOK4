@@ -31,3 +31,22 @@ $$;
 CALL lab5.process_rental(1, 1, 1, 4.99);
 SELECT * FROM lab5.rental_tx;
 SELECT * FROM lab5.payment_tx;
+CREATE OR REPLACE PROCEDURE lab5.process_rental_bad_commit(
+  IN p_customer_id  integer,
+  IN p_inventory_id integer,
+  IN p_staff_id     integer,
+  IN p_amount       numeric(10,2)
+) LANGUAGE plpgsql AS $$
+DECLARE
+  v_rental_id bigint;
+BEGIN
+  INSERT INTO lab5.rental_tx (customer_id, inventory_id, staff_id)
+  VALUES (p_customer_id, p_inventory_id, p_staff_id)
+  RETURNING rental_id INTO v_rental_id;
+
+  COMMIT; -- Sengaja COMMIT internal (akan gagal di psycopg 3)
+
+  INSERT INTO lab5.payment_tx (rental_id, amount)
+  VALUES (v_rental_id, p_amount);
+END;
+$$;

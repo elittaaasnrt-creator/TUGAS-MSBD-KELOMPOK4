@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS lab4.harga_film CASCADE;

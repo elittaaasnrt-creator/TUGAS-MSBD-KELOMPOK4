@@ -385,4 +385,4 @@ Saya menggunakan AI assistant untuk membantu analisis penanganan dependensi kone
 
 ## Tautan Merge Request
 
-[Merge Request Pertemuan 5]([URL_MR_DI_SINI](https://github.com/elittaaasnrt-creator/TUGAS-MSBD-KELOMPOK4/pull/9))
+[Merge Request Pertemuan 5](https://github.com/elittaaasnrt-creator/TUGAS-MSBD-KELOMPOK4/pull/9))

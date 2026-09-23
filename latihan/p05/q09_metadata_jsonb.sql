@@ -1,4 +1,6 @@
-
+-- Diminta: menyimpan data terstruktur (channel, device) di kolom metadata JSONB dan mengambil salah satu key-nya.
+-- Dipilih: memakai literal JSONB langsung dan operator ->> untuk ambil nilai sebagai teks.
+-- Alternatif: memecah channel/device jadi kolom terpisah; tidak dipilih karena metadata sifatnya fleksibel dan bisa berubah struktur ke depan.
 
 -- Menyimpan metadata berupa JSONB
 UPDATE lab5.rental_tx

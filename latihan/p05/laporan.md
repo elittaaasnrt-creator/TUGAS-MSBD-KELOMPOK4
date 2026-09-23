@@ -79,11 +79,19 @@ Informasi yang hilang: nama constraint asli, tabel/kolom yang dilanggar, dan nil
 Percobaan 1: Nilai nol
 
 ```sql
-INSERT INTO lab5.payment_tx (payment_id, amount)
-VALUES (9991, 0);
+INSERT INTO lab5.payment_tx (rental_id, amount) VALUES (1, 0);
 ```
 
-ERROR: value for domain positive_amount violates check constraint "positive_amount_check"
+ERROR: value for domain lab5.positive_amount violates check constraint "positive_amount_check"
+SQLSTATE: 23514
+
+Percobaan 2: Nilai negatif
+
+```sql
+INSERT INTO lab5.payment_tx (rental_id, amount) VALUES (1, -1000);
+```
+
+ERROR: value for domain lab5.positive_amount violates check constraint "positive_amount_check"
 SQLSTATE: 23514
 
 Percobaan 2: Nilai negatif

@@ -104,8 +104,53 @@ Informasi yang hilang: nama constraint asli, tabel/kolom yang dilanggar, dan nil
    1172 | idle in transaction | 2026-09-22 17:54:44.355965+00 | SELECT 1;
   (1 row)
   
-### Q16–Q20 _(diisi Azkha)_
-...
+### Q16 — Model deklaratif 
+
+Model `Customer` dipetakan ke `public.customer` (tabel Pagila, tidak dibuat ulang) dan `Rental` dipetakan ke `lab5.rental_tx`. Relasi satu-ke-banyak dihubungkan lewat `relationship(back_populates=...)` di kedua sisi. Kode lengkap di `lab5_orm.py`.
+
+### Q17 — Bukti N+1
+
+Mengambil 10 customer lalu mengakses `c.rentals` untuk masing-masing menghasilkan **11 SELECT statement**: 1 SELECT untuk daftar customer, ditambah 10 SELECT terpisah (satu per customer) untuk mengambil rental-nya — sesuai target soal.
+
+```
+SELECT ... FROM public.customer LIMIT 10
+SELECT ... FROM lab5.rental_tx WHERE customer_id = 1
+SELECT ... FROM lab5.rental_tx WHERE customer_id = 2
+... (berulang untuk customer_id 3–10)
+```
+
+### Q18 — selectinload
+
+Query yang sama dengan `selectinload(Customer.rentals)` menghasilkan **2 SELECT statement**: 1 untuk customer, 1 untuk seluruh rental sekaligus memakai `WHERE customer_id IN (1,2,...,10)`. Sesuai target soal.
+
+```
+SELECT ... FROM public.customer LIMIT 10
+SELECT ... FROM lab5.rental_tx WHERE customer_id IN (1,2,3,4,5,6,7,8,9,10)
+```
+
+### Q19 — joinedload
+
+Dengan `joinedload(Customer.rentals)`, hanya **1 SELECT statement** dijalankan, memakai `LEFT OUTER JOIN` antara `customer` dan `rental_tx`. Dibandingkan Q18: `selectinload` memakai 2 statement terpisah (1 induk + 1 `IN`), sedangkan `joinedload` menyatukan keduanya dalam 1 statement lewat JOIN, tapi baris customer terduplikasi sebanyak jumlah rental-nya sebelum di-deduplikasi lewat `.unique()` di sisi Python.
+
+### Q20 — ORM vs SQL mentah
+
+Query analitik "5 film tersewa terbanyak" ditulis dalam dua versi: ORM (SQLAlchemy expression) dan SQL mentah (`text()`). Hasil keduanya identik:
+
+| Judul Film | Jumlah Sewa |
+|---|---:|
+| BUCKET BROTHERHOOD | 34 |
+| ROCKETEER MOTHER | 33 |
+| RIDGEMONT SUBMARINE | 32 |
+| SCALAWAG DUCK | 32 |
+| FORWARD TEMPLE | 32 |
+
+Waktu eksekusi: **ORM 27,587 ms**, **SQL mentah 5,175 ms** — SQL mentah kurang lebih 5x lebih cepat pada percobaan ini.
+
+## Ringkasan N+1
+
+| Q17 | Q18 | Q19 | Penafsiran |
+|---:|---:|---:|---|
+| 11 | 2 | 1 | Lazy load default (Q17) memicu satu query tambahan per baris induk. `selectinload` (Q18) memangkas ini jadi satu query batch. `joinedload` (Q19) menyatukan semuanya jadi satu JOIN, tapi menduplikasi baris induk di hasil mentahnya. |
 
 ### Q21–Q24 _(diisi Syifa)_
 ...
@@ -129,7 +174,10 @@ Sisi aplikasi dapat memicu *rollback* berdasarkan **logika bisnis eksternal atau
 Contohnya, aplikasi Python dapat membatalkan transaksi database jika *API payment gateway* pihak ketiga (seperti Midtrans/Stripe) merespons dengan galat, terjadi kegagalan pengiriman surel konfirmasi, atau syarat verifikasi internal Python tidak terpenuhi—kondisi-kondisi eksternal yang sama sekali tidak dapat dideteksi atau dijangkau oleh prosedur SQL di dalam basis data.
 
 ### Reflektif D _(diisi Azkha)_
-...
+
+Untuk Q20, versi SQL mentah dipilih jika kode dibaca ulang tim enam bulan lagi. Query ini murni analitik (agregasi read-only, bukan memuat objek domain yang akan dimodifikasi), dan pada percobaan kami SQL mentah terbukti sekitar 5x lebih cepat (5,175 ms berbanding 27,587 ms untuk ORM). Query analitik seperti ini juga lebih mudah dioptimasi langsung di level database (index, `EXPLAIN`) ketika ditulis sebagai SQL mentah, tanpa lapisan abstraksi tambahan dari ORM.
+
+`joinedload` lebih tepat dari `selectinload` ketika jumlah baris induk sedikit dan relasinya tidak terlalu banyak — misalnya mengambil satu customer beserta rental-nya untuk halaman detail. `joinedload` hanya butuh satu round-trip ke database (terbukti di Q19: 1 statement), sehingga overhead jaringan lebih kecil dibanding `selectinload` yang tetap butuh dua round-trip. Sebaliknya, `selectinload` lebih tepat saat jumlah baris induk banyak (seperti pada Q17–Q18 dengan 10 customer), karena `joinedload` menduplikasi baris induk sebanyak jumlah relasinya, menambah beban transfer data dan butuh deduplikasi manual lewat `.unique()` di sisi aplikasi.
 
 ### Reflektif E _(diisi Syifa)_
 ...

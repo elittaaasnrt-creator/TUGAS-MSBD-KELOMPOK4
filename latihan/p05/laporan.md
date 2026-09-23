@@ -334,4 +334,4 @@ Saya menggunakan AI assistant untuk membantu menyusun model deklaratif SQLAlchem
 Saya menggunakan AI assistant untuk membantu analisis penanganan dependensi koneksi FastAPI (`psycopg_pool`), pemetaan error `psycopg.errors.ForeignKeyViolation` ke status HTTP 409, penyusunan perintah pengujian `curl` untuk Q21–Q24, serta merumuskan poin refleksi pemisahan tanggung jawab layer API dan basis data (Reflektif E).
 
 ### Agi Aginta Sembiring
-Saya menggunakan AI assistant untuk membantu saya memahami alur pengerjaan saya serta membantu dalam mengerjakan beberapa hal yang error.D
+Saya menggunakan AI assistant untuk membantu saya memahami alur pengerjaan saya serta membantu dalam mengerjakan beberapa hal yang error.

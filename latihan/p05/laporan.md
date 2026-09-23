@@ -213,8 +213,90 @@ Waktu eksekusi: **ORM 27,587 ms**, **SQL mentah 5,175 ms** — SQL mentah kurang
 |---:|---:|---:|---|
 | 11 | 2 | 1 | Lazy load default (Q17) memicu satu query tambahan per baris induk. `selectinload` (Q18) memangkas ini jadi satu query batch. `joinedload` (Q19) menyatukan semuanya jadi satu JOIN, tapi menduplikasi baris induk di hasil mentahnya. |
 
-### Q21–Q24 _(diisi Syifa)_
-...
+### Q21–Q24 
+
+---
+
+
+### Q21 — Dependency koneksi (`get_conn`)
+- **Deskripsi**: Membuat fungsi dependency FastAPI `get_conn` dengan gaya `with yield` untuk meminjam koneksi dari `ConnectionPool` secara terisolasi per permintaan HTTP.
+- **Potongan Kode**:
+  ```python
+  def get_conn():
+      with pool.connection() as conn:
+          yield conn
+
+```
+
+### Q22 — POST /rentals
+
+* **Deskripsi**: Membuat endpoint FastAPI `POST /rentals` yang memanggil *procedure* `lab5.process_rental` di basis data dan mengembalikan status `201 Created` beserta `rental_id`.
+* **Perintah curl**:
+```bash
+curl -s -X POST localhost:8000/rentals -H 'content-type: application/json' \
+  -d '{"customer_id":1,"inventory_id":1,"staff_id":1,"amount":4.99}'
+
+```
+
+
+* **Respons (HTTP 201 Created)**:
+```json
+{"rental_id": 1, "message": "Rental berhasil diproses"}
+
+```
+
+
+### Q23 — Handling Nilai Negatif (Input Validation)
+
+* **Deskripsi**: Menguji pengiriman nilai `amount` negatif (-4.99) ke endpoint. Validasi Pydantic di FastAPI secara otomatis mencegat input invalid dan mengembalikan status `422 Unprocessable Entity` tanpa membiarkan query menyentuh atau mengekspos error SQL basis data.
+* **Perintah curl**:
+```bash
+curl -s -i -X POST localhost:8000/rentals -H 'content-type: application/json' \
+  -d '{"customer_id":1,"inventory_id":1,"staff_id":1,"amount":-4.99}'
+
+```
+
+
+* **Respons (HTTP 422 Unprocessable Entity)**:
+```json
+{
+  "detail": [
+    {
+      "type": "greater_than",
+      "loc": ["body", "amount"],
+      "msg": "Input should be greater than 0",
+      "input": -4.99,
+      "ctx": {"gt": 0.0}
+    }
+  ]
+}
+
+```
+
+
+
+### Q24 — Inventory Tidak Ada (Database FK Exception Mapping)
+
+* **Deskripsi**: Menguji pengiriman `inventory_id` yang tidak terdaftar di database (misal `99999`). Handler menangkap `psycopg.errors.ForeignKeyViolation` dan menerjemahkannya menjadi status `409 Conflict` dengan pesan yang ramah tanpa membocorkan detail skema internal.
+* **Perintah curl**:
+```bash
+curl -s -i -X POST localhost:8000/rentals -H 'content-type: application/json' \
+  -d '{"customer_id":1,"inventory_id":99999,"staff_id":1,"amount":4.99}'
+
+```
+
+
+* **Respons Utuh (HTTP 409 Conflict)**:
+```json
+{
+  "detail": "Referensi data tidak ditemukan (Foreign Key Violation)."
+}
+
+```
+
+---
+
+### **Pembaruan Bagian Penggunaan AI**
 
 ## Refleksi A–E
 
@@ -240,8 +322,18 @@ Untuk Q20, versi SQL mentah dipilih jika kode dibaca ulang tim enam bulan lagi. 
 
 `joinedload` lebih tepat dari `selectinload` ketika jumlah baris induk sedikit dan relasinya tidak terlalu banyak — misalnya mengambil satu customer beserta rental-nya untuk halaman detail. `joinedload` hanya butuh satu round-trip ke database (terbukti di Q19: 1 statement), sehingga overhead jaringan lebih kecil dibanding `selectinload` yang tetap butuh dua round-trip. Sebaliknya, `selectinload` lebih tepat saat jumlah baris induk banyak (seperti pada Q17–Q18 dengan 10 customer), karena `joinedload` menduplikasi baris induk sebanyak jumlah relasinya, menambah beban transfer data dan butuh deduplikasi manual lewat `.unique()` di sisi aplikasi.
 
-### Reflektif E _(diisi Syifa)_
-...
+### Reflektif E 
+1. **Pemilihan Abstraksi Koneksi (Q21)**: 
+   Menggunakan `ConnectionPool` yang dikelola via context manager `lifespan` pada FastAPI. Peminjaman koneksi menggunakan `yield` memastikan bahwa koneksi hanya dipakai selama siklus permintaan (request-response) berlangsung dan dipastikan langsung kembali ke *pool* (walaupun terjadi *exception* di tengah proses execution).
+
+2. **Stored Procedure vs Query Langsung (Q22)**: 
+   Memanggil *stored procedure* `lab5.process_rental` melalui *parameterized query* (`%s`) membungkus logika bisnis transaksi (pembuatan rental sekaligus pembayaran) secara atomik di sisi basis data. Hal ini mencegah *partial write* jika aplikasi atau jaringan terputus di tengah proses.
+
+3. **Penanganan Validasi Input (Q23)**: 
+   Memanfaatkan tipe data `PositiveFloat` pada skema Pydantic. Validasi dilakukan di layer aplikasi (*boundary*) sebelum koneksi ke basis data dibuat. Ini menghemat penggunaan resource database dan memastikan bahwa query ber-SQLSTATE error tidak perlu dieksekusi untuk input yang secara bentuk sudah salah.
+
+4. **Pemetaan Error Database ke HTTP Status Code (Q24)**: 
+   Dengan menangkap `psycopg.errors.ForeignKeyViolation` secara eksplisit dan mengembalikannya sebagai respons HTTP `409 Conflict`, API terlindungi dari kebocoran informasi struktur tabel/constraint internal (*information disclosure*) sekaligus memberikan umpan balik yang informatif bagi klien.
 
 ## Di Mana Aturan Itu Tinggal
 | Aturan | Lapisan | Risiko bila dipindahkan | Bukti |
@@ -262,3 +354,6 @@ Saya pakai AI assistant untuk bantu susun perintah setup, debug masalah teknis d
 
 ### M. Dzakwan Ismail Rangkuti
 Saya menggunakan AI assistant untuk membantu memahami penanganan transaksi aplikasi pada driver Python (`psycopg 3`), menyusun skrip pengujian `ConnectionPool`, serta menganalisis kondisi `idle in transaction` dan penanganan *rollback* transaksi di sisi aplikasi Python untuk Q10–Q15 dan Reflektif C.
+
+### Syifa Nazira
+Saya menggunakan AI assistant untuk membantu analisis penanganan dependensi koneksi FastAPI (`psycopg_pool`), pemetaan error `psycopg.errors.ForeignKeyViolation` ke status HTTP 409, penyusunan perintah pengujian `curl` untuk Q21–Q24, serta merumuskan poin refleksi pemisahan tanggung jawab layer API dan basis data (Reflektif E).

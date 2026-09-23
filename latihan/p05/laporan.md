@@ -65,8 +65,69 @@ CALL lab5.process_rental_v2(1, 999999, 1, 4.99);
 
 Informasi yang hilang: nama constraint asli, tabel/kolom yang dilanggar, dan nilai `inventory_id` spesifik yang gagal — sengaja dibuang agar tidak membocorkan detail skema ke pengguna. Penangkapan ini layak karena FK violation punya makna bisnis yang jelas (ID tidak dikenal) dan galat tetap dinaikkan (RAISE), bukan ditelan.
 
-### Q6–Q9 _(diisi Agi)_
-...
+### Q6–Q9 
+
+q06_domain_positive_amount.sql
+Percobaan 1: Nilai nol
+INSERT INTO lab5.payment_tx (payment_id, amount)
+VALUES (9991, 0);
+
+Contoh output di PostgreSQL:
+ERROR: value for domain positive_amount violates check constraint "positive_amount_check"
+SQLSTATE: 23514
+
+Percobaan 2: Nilai negatif
+INSERT INTO lab5.payment_tx (payment_id, amount)
+VALUES (9992, -1000);
+
+Contoh output:
+ERROR: value for domain positive_amount violates check constraint "positive_amount_check"
+SQLSTATE: 23514
+
+q07_enum_status.sql
+
+Percobaan 1: Sebelum ALTER TYPE
+UPDATE lab5.rental_tx
+SET status = 'EXPIRED'
+WHERE rental_id = 1;
+
+Contoh output:
+ERROR: invalid input value for enum rental_status: "EXPIRED"
+
+SQLSTATE: 22P02
+Menambahkan nilai EXPIRED
+ALTER TYPE lab5.rental_status
+ADD VALUE 'EXPIRED';
+
+Output:
+ALTER TYPE
+
+Percobaan 2: Setelah ALTER TYPE
+UPDATE lab5.rental_tx
+SET status = 'EXPIRED'
+WHERE rental_id = 1;
+
+Output:
+UPDATE 1
+
+Reflektif B
+
+Pertanyaan
+Pilih tags atau metadata. Apakah sebaiknya tetap di sana atau dipindahkan menjadi tabel? Berikan satu pertanyaan bisnis yang dapat mengubah keputusan tersebut.
+
+Jawaban
+Saya memilih tags.
+
+Menurut saya, tags sebaiknya tetap disimpan sebagai array apabila hanya digunakan untuk menyimpan beberapa label sederhana pada setiap transaksi rental. Penggunaan array lebih praktis karena tidak memerlukan tabel tambahan untuk menyimpan tag.
+
+Namun, apabila tag perlu dikelola secara terpisah, memiliki atribut tambahan, atau sering digunakan dalam analisis bisnis, maka tags lebih baik dipindahkan ke tabel tersendiri.
+
+Pertanyaan bisnis yang dapat mengubah keputusan:
+
+Apakah setiap tag perlu memiliki informasi tambahan seperti kategori, deskripsi, dan jumlah penggunaannya untuk keperluan analisis bisnis?
+
+Jika jawabannya ya, penggunaan tabel terpisah akan lebih sesuai karena data tag dapat dikelola secara terstruktur dan dikembangkan dengan lebih mudah.
+
 
 ### Q10 — Executing Parameterized SELECT
 - **Deskripsi**: Menggunakan pemanggilan parameter `%s` agar pengemudian query aman dari injeksi SQL.

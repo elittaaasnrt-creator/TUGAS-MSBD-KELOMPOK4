@@ -334,7 +334,7 @@ Saya menggunakan AI assistant untuk membantu memahami penanganan transaksi aplik
 ### Muhammad Azkha Amorie
 
 Saya menggunakan AI assistant untuk membantu menyusun model deklaratif SQLAlchemy 2.0 (`Customer`, `Rental`) dan memverifikasi jumlah statement SQL yang dihasilkan lewat `echo=True` untuk Q17–Q19 (N+1, `selectinload`, `joinedload`), termasuk menyusun query analitik pembanding ORM vs SQL mentah untuk Q20 dan Reflektif D.
-=======
+
 ### Syifa Nazira
 
 Saya menggunakan AI assistant untuk membantu analisis penanganan dependensi koneksi FastAPI (`psycopg_pool`), pemetaan error `psycopg.errors.ForeignKeyViolation` ke status HTTP 409, penyusunan perintah pengujian `curl` untuk Q21–Q24, serta merumuskan poin refleksi pemisahan tanggung jawab layer API dan basis data (Reflektif E).

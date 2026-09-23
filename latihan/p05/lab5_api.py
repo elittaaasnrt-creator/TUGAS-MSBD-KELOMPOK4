@@ -8,7 +8,7 @@ from pydantic import BaseModel, PositiveFloat
 from psycopg_pool import ConnectionPool
 from psycopg.errors import ForeignKeyViolation, CheckViolation
 
-DSN = "postgresql://msbd:msbd2026@localhost:5432/latihan"
+DSN = "postgresql://msbd:msbd2026@localhost:5432/pagila"
 
 # Q21: Connection Pool Lifecycle
 pool = ConnectionPool(conninfo=DSN, open=False)

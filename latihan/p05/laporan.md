@@ -146,12 +146,6 @@ Query analitik "5 film tersewa terbanyak" ditulis dalam dua versi: ORM (SQLAlche
 
 Waktu eksekusi: **ORM 27,587 ms**, **SQL mentah 5,175 ms** — SQL mentah kurang lebih 5x lebih cepat pada percobaan ini.
 
-## Ringkasan N+1
-
-| Q17 | Q18 | Q19 | Penafsiran |
-|---:|---:|---:|---|
-| 11 | 2 | 1 | Lazy load default (Q17) memicu satu query tambahan per baris induk. `selectinload` (Q18) memangkas ini jadi satu query batch. `joinedload` (Q19) menyatukan semuanya jadi satu JOIN, tapi menduplikasi baris induk di hasil mentahnya. |
-
 ### Q21–Q24 _(diisi Syifa)_
 ...
 
@@ -192,7 +186,7 @@ Untuk Q20, versi SQL mentah dipilih jika kode dibaca ulang tim enam bulan lagi. 
 ## Ringkasan N+1
 | Q17 | Q18 | Q19 | Penafsiran |
 |---:|---:|---:|---|
-| _(diisi Azkha)_ | | | |
+| 11 | 2 | 1 | Lazy load default (Q17) memicu satu query tambahan per baris induk. `selectinload` (Q18) memangkas ini jadi satu query batch. `joinedload` (Q19) menyatukan semuanya jadi satu JOIN, tapi menduplikasi baris induk di hasil mentahnya. |
 
 ## Penggunaan AI dan Verifikasi
 
@@ -201,3 +195,7 @@ Saya pakai AI assistant untuk bantu susun perintah setup, debug masalah teknis d
 
 ### M. Dzakwan Ismail Rangkuti
 Saya menggunakan AI assistant untuk membantu memahami penanganan transaksi aplikasi pada driver Python (`psycopg 3`), menyusun skrip pengujian `ConnectionPool`, serta menganalisis kondisi `idle in transaction` dan penanganan *rollback* transaksi di sisi aplikasi Python untuk Q10–Q15 dan Reflektif C.
+
+### Muhammad Azkha Amorie
+
+Saya menggunakan AI assistant untuk membantu menyusun model deklaratif SQLAlchemy 2.0 (`Customer`, `Rental`) dan memverifikasi jumlah statement SQL yang dihasilkan lewat `echo=True` untuk Q17–Q19 (N+1, `selectinload`, `joinedload`), termasuk menyusun query analitik pembanding ORM vs SQL mentah untuk Q20 dan Reflektif D.

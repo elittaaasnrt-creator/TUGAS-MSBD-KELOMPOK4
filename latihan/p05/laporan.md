@@ -110,24 +110,6 @@ WHERE rental_id = 1;
 Output:
 UPDATE 1
 
-Reflektif B
-
-Pertanyaan
-Pilih tags atau metadata. Apakah sebaiknya tetap di sana atau dipindahkan menjadi tabel? Berikan satu pertanyaan bisnis yang dapat mengubah keputusan tersebut.
-
-Jawaban
-Saya memilih tags.
-
-Menurut saya, tags sebaiknya tetap disimpan sebagai array apabila hanya digunakan untuk menyimpan beberapa label sederhana pada setiap transaksi rental. Penggunaan array lebih praktis karena tidak memerlukan tabel tambahan untuk menyimpan tag.
-
-Namun, apabila tag perlu dikelola secara terpisah, memiliki atribut tambahan, atau sering digunakan dalam analisis bisnis, maka tags lebih baik dipindahkan ke tabel tersendiri.
-
-Pertanyaan bisnis yang dapat mengubah keputusan:
-
-Apakah setiap tag perlu memiliki informasi tambahan seperti kategori, deskripsi, dan jumlah penggunaannya untuk keperluan analisis bisnis?
-
-Jika jawabannya ya, penggunaan tabel terpisah akan lebih sesuai karena data tag dapat dikelola secara terstruktur dan dikembangkan dengan lebih mudah.
-
 
 ### Q10 — Executing Parameterized SELECT
 - **Deskripsi**: Menggunakan pemanggilan parameter `%s` agar pengemudian query aman dari injeksi SQL.
@@ -279,8 +261,22 @@ curl -s -i -X POST localhost:8000/rentals -H 'content-type: application/json' \
 ### Reflektif A
 Transaksi dimulai oleh pemanggil (sesi `psql` pada Q3, `with psycopg.connect(...)` pada Q4) — procedure sendiri tidak pernah membuka/menutup transaksi. Transaksi diakhiri otomatis oleh pemanggil juga: pada Q3 lewat rollback otomatis saat `RAISE EXCEPTION` (jumlah baris tidak berubah), pada Q4 lewat penolakan sistem terhadap `COMMIT` eksplisit di dalam procedure (`invalid transaction termination`). Keduanya membuktikan batas transaksi adalah milik pemanggil, bukan procedure.
 
-### Reflektif B _(diisi Agi)_
-...
+### Reflektif B 
+Pertanyaan
+Pilih tags atau metadata. Apakah sebaiknya tetap di sana atau dipindahkan menjadi tabel? Berikan satu pertanyaan bisnis yang dapat mengubah keputusan tersebut.
+
+Jawaban
+Saya memilih tags.
+
+Menurut saya, tags sebaiknya tetap disimpan sebagai array apabila hanya digunakan untuk menyimpan beberapa label sederhana pada setiap transaksi rental. Penggunaan array lebih praktis karena tidak memerlukan tabel tambahan untuk menyimpan tag.
+
+Namun, apabila tag perlu dikelola secara terpisah, memiliki atribut tambahan, atau sering digunakan dalam analisis bisnis, maka tags lebih baik dipindahkan ke tabel tersendiri.
+
+Pertanyaan bisnis yang dapat mengubah keputusan:
+
+Apakah setiap tag perlu memiliki informasi tambahan seperti kategori, deskripsi, dan jumlah penggunaannya untuk keperluan analisis bisnis?
+
+Jika jawabannya ya, penggunaan tabel terpisah akan lebih sesuai karena data tag dapat dikelola secara terstruktur dan dikembangkan dengan lebih mudah
 
 ### Reflektif C
 
@@ -332,9 +328,10 @@ Saya pakai AI assistant untuk bantu susun perintah setup, debug masalah teknis d
 Saya menggunakan AI assistant untuk membantu memahami penanganan transaksi aplikasi pada driver Python (`psycopg 3`), menyusun skrip pengujian `ConnectionPool`, serta menganalisis kondisi `idle in transaction` dan penanganan *rollback* transaksi di sisi aplikasi Python untuk Q10–Q15 dan Reflektif C.
 
 ### Muhammad Azkha Amorie
-
 Saya menggunakan AI assistant untuk membantu menyusun model deklaratif SQLAlchemy 2.0 (`Customer`, `Rental`) dan memverifikasi jumlah statement SQL yang dihasilkan lewat `echo=True` untuk Q17–Q19 (N+1, `selectinload`, `joinedload`), termasuk menyusun query analitik pembanding ORM vs SQL mentah untuk Q20 dan Reflektif D.
 
 ### Syifa Nazira
-
 Saya menggunakan AI assistant untuk membantu analisis penanganan dependensi koneksi FastAPI (`psycopg_pool`), pemetaan error `psycopg.errors.ForeignKeyViolation` ke status HTTP 409, penyusunan perintah pengujian `curl` untuk Q21–Q24, serta merumuskan poin refleksi pemisahan tanggung jawab layer API dan basis data (Reflektif E).
+
+### Agi Aginta Sembiring
+Saya menggunakan AI assistant untuk membantu saya memahami alur pengerjaan saya serta membantu dalam mengerjakan beberapa hal yang error.D

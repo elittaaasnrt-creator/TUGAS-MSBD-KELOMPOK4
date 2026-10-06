@@ -11,7 +11,7 @@ Manajemen Sistem Basis Data, Kelompok 4. Mengukur Harga Sebuah Index.
 | M. Dzakwan Ismail Rangkuti | 251402014 | dzakwanrangkuti       | Q7-Q11, Q27             | a49cb1e          |
 | Agi Aginta Sembiring       | 251402059 | agisembiring263-pixel | Q12-Q16, Q28             | a49cb1e          |
 | M. Azkha Amorie            | 251402092 | azkhaamorie           | Q17-Q21, Q29            |                  |
-| Syifa Nazira               | 251402126 | ziraa94               | Q22-Q26, Q30            |                  |
+| Syifa Nazira               | 251402126 | ziraa94               | Q22-Q26, Q30            | ee0d6ce          |
 
 Tautan merge request: (diisi setelah semua branch digabung)
 
@@ -198,8 +198,6 @@ Pengujian kueri berfilter kombinasi `wilayah = 'Sumatera Utara'` dan `kota = 'Me
 Titik peralihan antara `Index Scan` dan `Seq Scan` bukan merupakan angka persentase yang tetap karena PostgreSQL menggunakan *cost-based optimizer* yang menghitung estimasi biaya I/O dan CPU secara dinamis. Perhitungan biaya ini dipengaruhi oleh rasio parameter `random_page_cost` terhadap `seq_page_cost`, tingkat korelasi fisik urutan data pada disk (`pg_stats.correlation`), ukuran total tabel, serta persentase data yang sudah tersimpan di *buffer cache* RAM. Akibatnya, titik transisi akan selalu menyesuaikan dengan kondisi fisik penyimpanan dan karakteristik distribusi data, bukan berupa satu angka persentase yang kaku.
 
 ---
-
-### Q27-Q31
 
 ### Q27
 Pengujian dampak penulisan (*write overhead*) dilakukan dengan memasukkan 200.000 baris data ke dua tabel terpisah:

@@ -20,14 +20,14 @@ Soal Q1-Q6 (anatomi storage) bukan pengukuran waktu EXPLAIN, jadi jawabannya ada
 | Q19 | BRIN vs B-Tree terjadi_pada (ukuran, correlation) | - | - | - | - | - | - | BRIN 32 kB / B-Tree 43 MB | correlation=1; BRIN dipertahankan | Azkha |
 | Q20 | Rentang 7 hari: BRIN vs B-Tree | BRIN: 11.173/7.899/7.352 — B-Tree: 9.685/10.610/8.755 | 7.352 (BRIN) / 8.755 (B-Tree) | 7.899 (BRIN) / 9.685 (B-Tree) | hit=1411 (BRIN) / hit=1499 (B-Tree) | 32 kB / 43 MB | BRIN menang di waktu & Buffers | Azkha |
 | Q29 | Daftar index lab6, idx_scan, ukuran | - | - | - | - | - | - | lihat laporan.md | ev_terjadi_brin_idx idx_scan=0 tapi dipertahankan | Azkha |
-| Q22 | Index status: SUKSES vs GAGAL | | | | | | | | | Syifa |
-| Q23 | Titik peralihan Index Scan ke Seq Scan | | | | | | | | | Syifa |
-| Q24 | random_page_cost = 1.1 (lalu RESET) | | | | | | | | | Syifa |
-| Q25 | Extended statistics wilayah-kota (sebelum/sesudah) | | | | | | | | | Syifa |
+| Q22 | Index status: SUKSES vs GAGAL | 324.95 (SUKSES) / 149.20 (GAGAL) | 324.95 / 149.20 | 324.95 / 149.20 | 324.95 ms (SUKSES) / 149.20 ms (GAGAL) | 324.95 ms / 149.20 ms | hit=14886 read=43683 (SUKSES) / read=39974 (GAGAL) | 43 MB | SUKSES pilih Seq Scan, GAGAL pilih Index Scan | Syifa |
+| Q23 | Titik peralihan Index Scan ke Seq Scan | - | - | - | - | - | - | - | Transisi pada selektivitas 10%–15% (SUKSES 84% -> Seq Scan) | Syifa |
+| Q24 | random_page_cost = 1.1 (lalu RESET) | 329.04 | 329.04 | 329.04 | 329.04 ms | 329.04 ms | hit=16206 read=42363 | 43 MB | Tetap Seq Scan karena data SUKSES sangat dominan (84%) | Syifa |
+| Q25 | Extended statistics wilayah-kota (sebelum/sesudah) | 81.01 (sblm) / 92.86 (ssdh) | 81.01 / 92.86 | 81.01 / 92.86 | 81.01 ms (sblm) / 92.86 ms (ssdh) | 81.01 ms / 92.86 ms | hit=16098 read=42471 | 0 MB (stat) | Parallel Seq Scan; tingkatkan presisi estimasi multi-kolom | Syifa |
 | Q27 | INSERT 200000 baris: tanpa index vs lima index | 813.58 | 813.58 | 813.58 | 813.58 ms | 813.58 ms | - | - | Overhead penulisan ~2.82x lebih lambat | Mael |
 | Q28 | Ukuran total tabel: tanpa index vs dengan index | - | - | - | - | - | - | 28 MB vs 72 MB | Overhead penyimpanan index 44 MB | Agi |
 | Q29 | Daftar index lab6, idx_scan, ukuran | - | - | - | - | - | - | | | Azkha |
-| Q30 | Rekomendasi final (satu angka per keputusan) | - | - | - | - | - | - | | | Syifa |
+| Q30 | Rekomendasi final (satu angka per keputusan) | - | - | - | - | - | - | - | Pertahankan `ev_benar_idx` & `ev_cover_idx`, hapus `idx_event_status` | Syifa |
 
 ## Catatan Penyimpangan
 

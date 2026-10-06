@@ -73,8 +73,8 @@ Dengan index `ev_benar_idx` (`customer_id, terjadi_pada DESC`), pencarian menjad
 
 ### Q10
 Ukuran fisik kedua index pada disk adalah:
-* Ukuran `ev_salah_idx`: **60 MB**
-* Ukuran `ev_benar_idx`: **60 MB**
+- Ukuran `ev_salah_idx`: **60 MB**
+- Ukuran `ev_benar_idx`: **60 MB**
 
 Kedua index memiliki ukuran yang sama persis karena menyimpannya pada tipe data dan jumlah tuple yang sama (`customer_id` berukuran 4 byte dan `terjadi_pada` berukuran 8 byte). Perbedaan performa antara Q8 dan Q9 murni disebabkan oleh **efisiensi penelusuran struktur B-Tree**, bukan karena perbedaan ukuran penyimpanan physical index.
 
@@ -87,19 +87,19 @@ Aturan dasar pembuatan index gabungan adalah *Equality-First, Range/Sort-Second*
 
 ### Q12
 Pengukuran perbandingan ukuran antara partial index dan index polos pada kolom `terjadi_pada`:
-* Ukuran index polos (`ev_polos_idx`): **43 MB**
-* Ukuran partial index (`ev_gagal_idx`): **896 kB**
-* **Penghematan Ukuran**: **~97,9%**. Partial index menghemat ruang disk dan RAM secara drastis karena hanya menyimpan entri untuk baris data yang memenuhi kondisi `WHERE status = 'GAGAL'`.
+- Ukuran index polos (`ev_polos_idx`): **43 MB**
+- Ukuran partial index (`ev_gagal_idx`): **896 kB**
+- **Penghematan Ukuran**: **~97,9%**. Partial index menghemat ruang disk dan RAM secara drastis karena hanya menyimpan entri untuk baris data yang memenuhi kondisi `WHERE status = 'GAGAL'`.
 
 ---
 
 ### Q13
 Pengujian pencarian email dengan dan tanpa expression index:
-* **Query `email = 'user100@contoh.ac.id'` (Tanpa Expression)**:
+- **Query `email = 'user100@contoh.ac.id'` (Tanpa Expression)**:
   * Node: `Parallel Seq Scan`
   * Execution Time: **532,803 ms**
   * Buffers: `shared hit=2268 read=56301` (total 58.569 blocks)
-* **Query `lower(email) = 'user100@contoh.ac.id'` (Dengan Expression Index)**:
+- **Query `lower(email) = 'user100@contoh.ac.id'` (Dengan Expression Index)**:
   * Node: `Bitmap Index Scan` menggunakan `ev_email_lower_idx`
   * Execution Time: **3,534 ms** (~150x lebih cepat)
   * Buffers: `shared read=4`
@@ -108,12 +108,12 @@ Pengujian pencarian email dengan dan tanpa expression index:
 
 ### Q14
 Pengujian covering index `ev_cover_idx` sebelum dan sesudah perintah `VACUUM (ANALYZE)`:
-* **Sebelum VACUUM (ANALYZE)**:
+- **Sebelum VACUUM (ANALYZE)**:
   * Node: `Index Only Scan` menggunakan `ev_cover_idx`
   * Heap Fetches: **0**
   * Buffers: `shared hit=2 read=4`
   * Execution Time: **3,480 ms**
-* **Sesudah VACUUM (ANALYZE)**:
+- **Sesudah VACUUM (ANALYZE)**:
   * Node: `Index Only Scan` menggunakan `ev_cover_idx`
   * Heap Fetches: **0**
   * Buffers: `shared hit=6` (100% RAM hit)
@@ -123,9 +123,9 @@ Pengujian covering index `ev_cover_idx` sebelum dan sesudah perintah `VACUUM (AN
 
 ### Q15
 Perbandingan antara covering index (`INCLUDE`) dengan composite index 3 kolom biasa:
-* Ukuran `ev_cover_idx` (`customer_id` INCLUDE `terjadi_pada, jumlah`): **77 MB**
-* Ukuran `ev_3kolom_idx` (`customer_id, terjadi_pada, jumlah`): **77 MB**
-* Rencana eksekusi kedua index sama-sama menghasilkan `Index Only Scan` dengan `Heap Fetches: 0`. Penggunaan klausa `INCLUDE` memberikan keuntungan arsitektural karena kolom tambahan hanya ditempatkan di *leaf node* tanpa menambah kompleksitas pengurutan internal node B-Tree.
+- Ukuran `ev_cover_idx` (`customer_id` INCLUDE `terjadi_pada, jumlah`): **77 MB**
+- Ukuran `ev_3kolom_idx` (`customer_id, terjadi_pada, jumlah`): **77 MB**
+- Rencana eksekusi kedua index sama-sama menghasilkan `Index Only Scan` dengan `Heap Fetches: 0`. Penggunaan klausa `INCLUDE` memberikan keuntungan arsitektural karena kolom tambahan hanya ditempatkan di *leaf node* tanpa menambah kompleksitas pengurutan internal node B-Tree.
 
 ---
 
@@ -140,9 +140,28 @@ Perbandingan antara covering index (`INCLUDE`) dengan composite index 3 kolom bi
 
 ---
 
-### Q22-Q26
+### Q22
+Pada pembuatan index `idx_event_status` di kolom status, rencana eksekusi menunjukkan perbedaan node scan yang signifikan. Kueri dengan kondisi `status = 'SUKSES'` menggunakan node **Seq Scan** pada tabel `event_log` dengan waktu eksekusi sekitar **324.95 ms** dan pembacaan buffer `shared hit=14886 read=43683`. Hal ini terjadi karena nilai `SUKSES` mencakup mayoritas data sebanyak 1.680.000 dari total 2.000.000 baris, sehingga optimizer menilai pemindaian sekuensial jauh lebih murah daripada pencarian acak di index. Sebaliknya, kueri dengan `status = 'GAGAL'` memilih **Index Scan using idx_event_status** dengan waktu eksekusi **149.20 ms** dan buffer `shared read=39974 written=16125` karena nilainya bersifat langka dan selektif hanya sebesar 40.000 baris.
 
-(diisi Syifa)
+---
+
+### Q23
+Perhitungan fraksi tiap status pada tabel `lab6.event_log` menghasilkan distribusi data sebesar **0.02** atau **2%** untuk status `GAGAL` (40.000 baris), **0.14** atau **14%** untuk status `TERTUNDA` (280.000 baris), dan **0.84** atau **84%** untuk status `SUKSES` (1.680.000 baris). Optimizer PostgreSQL umumnya berpindah dari `Index Scan` ke `Seq Scan` pada kisaran titik transisi selektivitas 10% hingga 15%. Pada nilai `SUKSES` yang mencapai 84%, overhead I/O akses acak melalui index jauh melampaui biaya membaca seluruh blok tabel secara sekuensial.
+
+---
+
+### Q24
+Pengujian dengan menurunkan parameter `random_page_cost = 1.1` bertujuan untuk menekan estimasi biaya pembacaan acak pada index. Meskipun parameter diset mendekati harga `seq_page_cost` (1.0), kueri untuk `status = 'SUKSES'` tetap mempertahankan opsi **Seq Scan** dengan waktu eksekusi **329.04 ms**. Hal ini membuktikan bahwa pada fraksi data yang sangat tinggi (84%), pembacaan sekuensial seluruh blok tabel secara linier tetap lebih efisien dibandingkan traversal index.
+
+---
+
+### Q25
+Pengujian kueri berfilter kombinasi `wilayah = 'Sumatera Utara'` dan `kota = 'Medan'` dijalankan dengan membuat extended statistics `CREATE STATISTICS stat_wilayah_kota (dependencies, ndistinct)` lalu di-`ANALYZE`. Rencana eksekusi sebelum dan sesudah extended statistics sama-sama menjalankan **Parallel Seq Scan** dengan 2 worker dan waktu eksekusi berkisar antara **81.01 ms** hingga **92.86 ms**. Keberadaan extended statistics mencatat ketergantungan fungsional antar-kolom sehingga memperpresisi estimasi baris (*cardinality estimation*) pada query planner ketika memproses kueri multi-kolom yang saling terikat secara geografis.
+
+---
+
+### Q26 (Reflektif)
+Titik peralihan antara `Index Scan` dan `Seq Scan` bukan merupakan angka persentase yang tetap karena PostgreSQL menggunakan *cost-based optimizer* yang menghitung estimasi biaya I/O dan CPU secara dinamis. Perhitungan biaya ini dipengaruhi oleh rasio parameter `random_page_cost` terhadap `seq_page_cost`, tingkat korelasi fisik urutan data pada disk (`pg_stats.correlation`), ukuran total tabel, serta persentase data yang sudah tersimpan di *buffer cache* RAM. Akibatnya, titik transisi akan selalu menyesuaikan dengan kondisi fisik penyimpanan dan karakteristik distribusi data, bukan berupa satu angka persentase yang kaku.
 
 ---
 
@@ -151,8 +170,8 @@ Perbandingan antara covering index (`INCLUDE`) dengan composite index 3 kolom bi
 ### Q27
 Pengujian dampak penulisan (*write overhead*) dilakukan dengan memasukkan 200.000 baris data ke dua tabel terpisah:
 
-* **Tabel tanpa index (`test_no_idx`)**: Membutuhkan waktu **813.58 ms** (~0.81 detik).
-* **Tabel dengan 6 index (`test_with_idx`)**: Membutuhkan waktu **2.295.57 ms** (~2.30 detik).
+- **Tabel tanpa index (`test_no_idx`)**: Membutuhkan waktu **813.58 ms** (~0.81 detik).
+- **Tabel dengan 6 index (`test_with_idx`)**: Membutuhkan waktu **2.295.57 ms** (~2.30 detik).
 
 Penambahan 6 index menyebabkan proses `INSERT` menjadi **2.82 kali lipat lebih lambat** (penurunan kecepatan ~182%). Hal ini terjadi karena setiap operasi penulisan tuple baru ke tabel utama (*heap page*) mewajibkan PostgreSQL untuk melakukan traversal B-Tree/GIN/BRIN dan memperbarui struktur daun (*leaf nodes*) di seluruh index yang terpasang.
 
@@ -160,10 +179,20 @@ Penambahan 6 index menyebabkan proses `INSERT` menjadi **2.82 kali lipat lebih l
 
 ### Q28
 Perbandingan ukuran total tabel setelah pengujian `INSERT` 200.000 baris pada Q27:
-* **Tabel Tanpa Index (`test_no_idx`)**: **28 MB** (murni hanya ukuran data *heap*).
-* **Tabel Dengan 5 Index (`test_with_idx`)**: **72 MB** (terdapat tambahan overhead sebesar 44 MB untuk mempertahankan seluruh struktur B-Tree index).
+- **Tabel Tanpa Index (`test_no_idx`)**: **28 MB** (murni hanya ukuran data *heap*).
+- **Tabel Dengan 5 Index (`test_with_idx`)**: **72 MB** (terdapat tambahan overhead sebesar 44 MB untuk mempertahankan seluruh struktur B-Tree index).
 
-(Q27 Mael, Q28 Agi, Q29 Azkha, Q30 Syifa, Q31 Jelita)
+---
+
+### Q30
+Berdasarkan hasil pengujian seluruh kueri, index yang dipertahankan adalah `ev_benar_idx` (`customer_id, terjadi_pada DESC`) karena terbukti memangkas waktu eksekusi secara drastis serta menghilangkan node `Sort`, dan `ev_cover_idx` (`customer_id` INCLUDE `terjadi_pada, jumlah`) untuk mendukung `Index-Only Scan` tanpa *heap fetches*. Sebaliknya, index `idx_event_status` (`status`) direkomendasikan untuk dihapus karena memiliki `idx_scan = 0` pada kueri utama, bernilai selektivitas buruk untuk data dominan (84% `SUKSES`), serta memperlambat penulisan `INSERT`. Selain itu, index tunggal terpisah seperti `customer_id` dan `terjadi_pada` digabungkan menjadi satu *composite index* berpenutup (`INCLUDE`) guna menghemat ruang disk dan meningkatkan efisiensi kueri.
+
+---
+
+### Q31 (Reflektif)
+Dalam menetapkan angka dasar keputusan untuk merekomendasikan apakah suatu index dipertahankan atau dihapus, indikator utama yang digunakan adalah nilai `idx_scan` dari `pg_stat_user_indexes` yang dikombinasikan dengan persentase penurunan waktu eksekusi (`execution time`) serta rasio efisiensi buffer. Sebagai contoh, index `ev_benar_idx` dipertahankan karena memberikan pemangkasan waktu eksekusi lebih dari 99% (dari ~102 ms menjadi 0.06 ms) dengan pembacaan buffer yang sangat minim (hanya 19 blocks). Sebaliknya, index `idx_event_status` direkomendasikan untuk dihapus karena memiliki nilai `idx_scan = 0` pada kueri utama, bernilai selektivitas buruk untuk data dominan (84% status SUKSES), serta terbukti menambah *overhead* penulisan pada operasi `INSERT` hingga 2.82 kali lipat lebih lambat.
+
+---
 
 ## Tabel Perbandingan
 
@@ -176,12 +205,16 @@ Perbandingan ukuran total tabel setelah pengujian `INSERT` 200.000 baris pada Q2
 | Q13 (`lower(email)`) | 3.534 ms | 3.534 ms | read=4 | 43 MB | **Sangat Direkomendasikan** (akselerasi query ~150x) |
 | Q14 (`ev_cover_idx` sesudah VACUUM) | 0.033 ms | 0.073 ms | hit=6, read=0 | 77 MB | **Sangat Direkomendasikan** (Index-Only Scan, Heap Fetches 0) |
 | Q15 (`ev_cover_idx` vs `ev_3kolom_idx`) | 0.125 ms | 0.185 ms | hit=2, read=4 | 77 MB vs 77 MB | **Pilih `ev_cover_idx`** (fleksibilitas struktur B-Tree) |
+| Q22 (`status = 'SUKSES'`) | 324.95 ms | 324.95 ms | hit=14886, read=43683 | 43 MB | `Seq Scan` lebih efisien untuk nilai dominan (84%) |
+| Q22 (`status = 'GAGAL'`) | 149.20 ms | 149.20 ms | read=39974, written=16125 | 43 MB | `Index Scan` bekerja baik pada nilai selektif (2%) |
+| Q24 (`random_page_cost = 1.1`) | 329.04 ms | 329.04 ms | hit=16206, read=42363 | 43 MB | `Seq Scan` tetap dipertahankan pada fraksi data tinggi |
+| Q25 (`stat_wilayah_kota`) | 81.01 ms | 92.86 ms | hit=16098, read=42471 | 0 MB (stat) | **Direkomendasikan** untuk presisi estimasi multi-kolom |
 | Q27 (Insert 200k Tanpa Index) | 813.58 ms | 813.58 ms | - | - | Baseline kecepatan tulis tabel |
 | Q27 (Insert 200k 6 Index) | 2295.57 ms | 2295.57 ms | - | - | Ada *write overhead* ~2.82x lebih lambat |
 
 ## Rekomendasi Akhir
 
-(diisi setelah Q27-Q30 selesai)
+Rekomendasi akhir pengindeksan basis data meliputi penerapan *Composite Index* beraturan *Equality-First, Range/Sort-Second* seperti `ev_benar_idx` serta penggunaan klausa `INCLUDE` (`ev_cover_idx`) pada kueri berfrekuensi tinggi untuk mencapai `Index-Only Scan`. Pembuatan B-Tree index polos pada kolom bernilai unik rendah seperti `status` harus dihindari karena PostgreSQL tetap memilih `Seq Scan` dan index hanya akan membebani operasi penulisan `INSERT`. Selain itu, pemanfaatan Partial Index terbukti ampuh menghemat ruang penyimpanan hingga 97.9% pada kondisi filter tertentu seperti `status = 'GAGAL'`, sementara Expression Index (`lower(email)`) direkomendasikan untuk mempercepat kueri pencarian teks *case-insensitive*.
 
 ## Penggunaan AI dan Verifikasi
 ### Jelita Hati Sinurat
@@ -197,6 +230,6 @@ Saya menggunakan AI assistant untuk membantu merancang pengujian partial index, 
 (diisi sendiri)
 
 ### Syifa Nazira
-(diisi sendiri)
+Saya menggunakan AI assistant untuk mendiskusikan mekanisme selektivitas query, dampak perubahan `random_page_cost`, dan pembentukan extended statistics pada PostgreSQL. Seluruh eksekusi query dilakukan secara mandiri di terminal psql Docker lokal, dan seluruh data angka pada laporan ini diambil langsung dari keluaran `EXPLAIN (ANALYZE, BUFFERS)` nyata pada sistem saya.
 
 '@ | Set-Content latihan\p06\laporan.md -Encoding utf8

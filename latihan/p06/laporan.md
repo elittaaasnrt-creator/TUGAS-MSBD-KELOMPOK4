@@ -1,4 +1,4 @@
-@'
+﻿@'
 
 # Laporan Latihan Kelompok Pertemuan 6
 
@@ -19,7 +19,8 @@ Tautan merge request: (diisi setelah semua branch digabung)
 ## Kondisi Uji
 
 - PostgreSQL 17 (Docker, image postgres:17, container msbd-pg)
-- Mesin: (isi CPU, RAM, sistem operasi)
+- Mesin: laptop Intel Core i5-13420H (12 thread), RAM 16 GB, Windows
+- Sumber daya Docker: 12 CPU, sekitar 8 GB RAM
 - Data: lab6.event_log, 2.000.000 baris (tidak diturunkan)
 - Setelan paralel: max_parallel_workers_per_gather = 0 pada sesi ukur
 - Pengulangan: setiap query dijalankan 3 kali, dilaporkan tercepat dan median
@@ -83,3 +84,4 @@ Pada hot_longgar, UPDATE kolom catatan (tidak terindeks) menghasilkan 10.000 HOT
 
 (diisi bersama, sebutkan alat AI yang dipakai, bagian yang dibantu, dan cara setiap angka serta jawaban diverifikasi ulang)
 '@ | Set-Content latihan\p06\laporan.md -Encoding utf8
+

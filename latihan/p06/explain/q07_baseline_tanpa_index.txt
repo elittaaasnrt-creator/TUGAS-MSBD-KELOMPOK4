@@ -1,0 +1,60 @@
+﻿=== Run 1 ===
+SET
+                                                        QUERY PLAN                                                         
+---------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=88568.35..88568.39 rows=17 width=22) (actual time=1077.676..1077.686 rows=20 loops=1)
+   Buffers: shared hit=3 read=58568
+   ->  Sort  (cost=88568.35..88568.39 rows=17 width=22) (actual time=1077.671..1077.675 rows=20 loops=1)
+         Sort Key: terjadi_pada DESC
+         Sort Method: quicksort  Memory: 26kB
+         Buffers: shared hit=3 read=58568
+         ->  Seq Scan on event_log  (cost=0.00..88568.00 rows=17 width=22) (actual time=535.093..1077.409 rows=23 loops=1)
+               Filter: ((terjadi_pada >= '2024-05-31 17:00:00+00'::timestamp with time zone) AND (customer_id = 4211))
+               Rows Removed by Filter: 1999977
+               Buffers: shared read=58568
+ Planning:
+   Buffers: shared hit=73 read=21 dirtied=1
+ Planning Time: 14.226 ms
+ Execution Time: 1077.784 ms
+(14 rows)
+
+=== Run 2 ===
+SET
+                                                        QUERY PLAN                                                        
+--------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=88568.35..88568.39 rows=17 width=22) (actual time=336.521..336.529 rows=20 loops=1)
+   Buffers: shared hit=35 read=58536
+   ->  Sort  (cost=88568.35..88568.39 rows=17 width=22) (actual time=336.518..336.521 rows=20 loops=1)
+         Sort Key: terjadi_pada DESC
+         Sort Method: quicksort  Memory: 26kB
+         Buffers: shared hit=35 read=58536
+         ->  Seq Scan on event_log  (cost=0.00..88568.00 rows=17 width=22) (actual time=151.008..336.354 rows=23 loops=1)
+               Filter: ((terjadi_pada >= '2024-05-31 17:00:00+00'::timestamp with time zone) AND (customer_id = 4211))
+               Rows Removed by Filter: 1999977
+               Buffers: shared hit=32 read=58536
+ Planning:
+   Buffers: shared hit=94
+ Planning Time: 0.870 ms
+ Execution Time: 336.585 ms
+(14 rows)
+
+=== Run 3 ===
+SET
+                                                        QUERY PLAN                                                        
+--------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=88568.35..88568.39 rows=17 width=22) (actual time=420.016..420.021 rows=20 loops=1)
+   Buffers: shared hit=67 read=58504
+   ->  Sort  (cost=88568.35..88568.39 rows=17 width=22) (actual time=420.014..420.016 rows=20 loops=1)
+         Sort Key: terjadi_pada DESC
+         Sort Method: quicksort  Memory: 26kB
+         Buffers: shared hit=67 read=58504
+         ->  Seq Scan on event_log  (cost=0.00..88568.00 rows=17 width=22) (actual time=206.927..419.735 rows=23 loops=1)
+               Filter: ((terjadi_pada >= '2024-05-31 17:00:00+00'::timestamp with time zone) AND (customer_id = 4211))
+               Rows Removed by Filter: 1999977
+               Buffers: shared hit=64 read=58504
+ Planning:
+   Buffers: shared hit=94
+ Planning Time: 0.759 ms
+ Execution Time: 420.074 ms
+(14 rows)
+

@@ -1,0 +1,60 @@
+﻿=== Run 1 ===
+SET
+                                                                                QUERY PLAN                                                                                
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=59185.29..59185.30 rows=1 width=8) (actual time=40.156..40.158 rows=1 loops=1)
+   Buffers: shared hit=9 read=1536
+   ->  Bitmap Heap Scan on event_log  (cost=27.86..59070.17 rows=46050 width=0) (actual time=2.764..34.645 rows=46523 loops=1)
+         Recheck Cond: ((terjadi_pada >= '2024-02-29 17:00:00+00'::timestamp with time zone) AND (terjadi_pada < '2024-03-07 17:00:00+00'::timestamp with time zone))
+         Rows Removed by Index Recheck: 6128
+         Heap Blocks: lossy=1536
+         Buffers: shared hit=9 read=1536
+         ->  Bitmap Index Scan on ev_ts_brin  (cost=0.00..16.35 rows=48035 width=0) (actual time=0.197..0.198 rows=15360 loops=1)
+               Index Cond: ((terjadi_pada >= '2024-02-29 17:00:00+00'::timestamp with time zone) AND (terjadi_pada < '2024-03-07 17:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=9
+ Planning:
+   Buffers: shared hit=187 read=5
+ Planning Time: 1.421 ms
+ Execution Time: 40.326 ms
+(14 rows)
+
+=== Run 2 ===
+SET
+                                                                                QUERY PLAN                                                                                
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=59185.29..59185.30 rows=1 width=8) (actual time=24.998..25.001 rows=1 loops=1)
+   Buffers: shared hit=1545
+   ->  Bitmap Heap Scan on event_log  (cost=27.86..59070.17 rows=46050 width=0) (actual time=1.138..19.428 rows=46523 loops=1)
+         Recheck Cond: ((terjadi_pada >= '2024-02-29 17:00:00+00'::timestamp with time zone) AND (terjadi_pada < '2024-03-07 17:00:00+00'::timestamp with time zone))
+         Rows Removed by Index Recheck: 6128
+         Heap Blocks: lossy=1536
+         Buffers: shared hit=1545
+         ->  Bitmap Index Scan on ev_ts_brin  (cost=0.00..16.35 rows=48035 width=0) (actual time=0.281..0.282 rows=15360 loops=1)
+               Index Cond: ((terjadi_pada >= '2024-02-29 17:00:00+00'::timestamp with time zone) AND (terjadi_pada < '2024-03-07 17:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=9
+ Planning:
+   Buffers: shared hit=192
+ Planning Time: 1.433 ms
+ Execution Time: 25.199 ms
+(14 rows)
+
+=== Run 3 ===
+SET
+                                                                                QUERY PLAN                                                                                
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=59185.29..59185.30 rows=1 width=8) (actual time=22.059..22.063 rows=1 loops=1)
+   Buffers: shared hit=1545
+   ->  Bitmap Heap Scan on event_log  (cost=27.86..59070.17 rows=46050 width=0) (actual time=0.635..16.936 rows=46523 loops=1)
+         Recheck Cond: ((terjadi_pada >= '2024-02-29 17:00:00+00'::timestamp with time zone) AND (terjadi_pada < '2024-03-07 17:00:00+00'::timestamp with time zone))
+         Rows Removed by Index Recheck: 6128
+         Heap Blocks: lossy=1536
+         Buffers: shared hit=1545
+         ->  Bitmap Index Scan on ev_ts_brin  (cost=0.00..16.35 rows=48035 width=0) (actual time=0.179..0.180 rows=15360 loops=1)
+               Index Cond: ((terjadi_pada >= '2024-02-29 17:00:00+00'::timestamp with time zone) AND (terjadi_pada < '2024-03-07 17:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=9
+ Planning:
+   Buffers: shared hit=192
+ Planning Time: 0.805 ms
+ Execution Time: 22.174 ms
+(14 rows)
+

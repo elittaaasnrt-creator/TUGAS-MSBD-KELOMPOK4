@@ -15,10 +15,11 @@ Soal Q1-Q6 (anatomi storage) bukan pengukuran waktu EXPLAIN, jadi jawabannya ada
 | Q14 | Covering ev_cover_idx sebelum VACUUM | | | | | | | | | Agi |
 | Q14 | Covering ev_cover_idx sesudah VACUUM (Heap Fetches) | | | | | | | | | Agi |
 | Q15 | INCLUDE vs index tiga kolom biasa | | | | | | | | | Agi |
-| Q17 | GIN payload jsonb_path_ops | | | | | | | | | Azkha |
-| Q18 | GIN tags (dengan vs tanpa GIN) | | | | | | | | | Azkha |
-| Q19 | BRIN vs B-Tree terjadi_pada (ukuran, correlation) | - | - | - | - | - | - | | | Azkha |
-| Q20 | Rentang 7 hari: BRIN vs B-Tree | | | | | | | | | Azkha |
+| Q17 | GIN payload jsonb_path_ops | 438.255 | 296.556 | 267.910 | 267.910 | 296.556 | hit=1 read=58588 | 7096 kB (GIN) / 458 MB (heap) | Dipertahankan, ~1.5% ukuran heap | Azkha |
+| Q18 | GIN tags (dengan vs tanpa GIN) | 313.279 | 288.284 | 255.030 | 255.030 | 288.284 | hit=1 read=58643 | 4664 kB (GIN) | Dipertahankan, 1.5x lebih cepat vs Seq Scan (430.753 ms) | Azkha |
+| Q19 | BRIN vs B-Tree terjadi_pada (ukuran, correlation) | - | - | - | - | - | - | BRIN 32 kB / B-Tree 43 MB | correlation=1; BRIN dipertahankan | Azkha |
+| Q20 | Rentang 7 hari: BRIN vs B-Tree | BRIN: 11.173/7.899/7.352 — B-Tree: 9.685/10.610/8.755 | 7.352 (BRIN) / 8.755 (B-Tree) | 7.899 (BRIN) / 9.685 (B-Tree) | hit=1411 (BRIN) / hit=1499 (B-Tree) | 32 kB / 43 MB | BRIN menang di waktu & Buffers | Azkha |
+| Q29 | Daftar index lab6, idx_scan, ukuran | - | - | - | - | - | - | lihat laporan.md | ev_terjadi_brin_idx idx_scan=0 tapi dipertahankan | Azkha |
 | Q22 | Index status: SUKSES vs GAGAL | | | | | | | | | Syifa |
 | Q23 | Titik peralihan Index Scan ke Seq Scan | | | | | | | | | Syifa |
 | Q24 | random_page_cost = 1.1 (lalu RESET) | | | | | | | | | Syifa |

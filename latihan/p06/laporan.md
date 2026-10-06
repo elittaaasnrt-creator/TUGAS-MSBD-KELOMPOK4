@@ -134,9 +134,43 @@ Perbandingan antara covering index (`INCLUDE`) dengan composite index 3 kolom bi
 
 ---
 
-### Q17-Q21
+### Q17 — GIN untuk JSONB (payload @> '{"promo": true}')
 
-(diisi Azkha)
+GIN (`ev_payload_gin_idx`, opclass `jsonb_path_ops`) dipakai lewat `Bitmap Index Scan`. Waktu: tercepat 267,9 ms, median 296,6 ms (3x uji: 438,3 / 296,6 / 267,9 ms). Ukuran index 7096 kB vs heap 458 MB — index hanya ±1,5% dari ukuran heap.
+
+
+### Q18 — GIN untuk array (tags @>)
+
+Dengan GIN (`ev_tags_gin_idx`): tercepat 255,0 ms, median 288,3 ms (313,3 / 288,3 / 255,0 ms). Tanpa GIN (dipaksa `enable_bitmapscan/indexscan = off`, jadi Seq Scan): 430,8 ms. GIN sekitar 1,5x lebih cepat.
+
+
+### Q19 — Correlation dan ukuran BRIN vs B-Tree
+
+`correlation` kolom `terjadi_pada` = **1** (sempurna), karena data di-insert berurutan waktu. Ukuran: BRIN 32 kB vs B-Tree 43 MB — BRIN lebih dari 1000x lebih kecil.
+
+### Q20 — Rentang 7 hari: BRIN vs B-Tree
+
+| Index | Tercepat | Median | Buffers |
+|---|---:|---:|---:|
+| BRIN | 7,35 ms | 7,90 ms | ~1414 |
+| B-Tree | 8,76 ms | 9,69 ms | ~1499 |
+
+BRIN menang baik di waktu maupun Buffers pada kondisi correlation tinggi ini, meski ukurannya 1000x lebih kecil dari B-Tree.
+
+### Q29 — Daftar index lab6, idx_scan, ukuran
+
+| Nama Index | idx_scan | Ukuran |
+|---|---:|---:|
+| ev_terjadi_brin_idx | 0 | 32 kB |
+| event_log_pkey | 1 | 43 MB |
+| ev_payload_gin_idx | 3 | 7096 kB |
+| ev_tags_gin_idx | 3 | 4664 kB |
+
+`ev_terjadi_brin_idx` tercatat idx_scan=0 karena index ini sempat di-drop dan dibuat ulang beberapa kali selama pengujian Q19–Q20 (untuk perbandingan head-to-head dengan B-Tree), sehingga statistik pemakaiannya ikut ter-reset. Index ini tetap layak dipertahankan: Q20 membuktikan BRIN menang di waktu dan Buffers dibanding B-Tree untuk query rentang waktu, dengan ukuran hanya 32 kB dibanding 43 MB.
+
+## Reflektif Q21
+
+Penghematan ukuran BRIN sepadan dengan selisih waktunya ketika kolom yang diindeks punya **correlation tinggi** terhadap urutan fisik tabel — pada percobaan kami, `correlation = 1` untuk `terjadi_pada` karena data di-insert berurutan waktu. Dalam kondisi ini BRIN tidak hanya jauh lebih kecil (32 kB vs 43 MB untuk B-Tree, hemat lebih dari 99%), tapi juga lebih cepat untuk query rentang (7,35 ms vs 8,76 ms tercepat, Buffers 1414 vs 1499). Sebaliknya, jika correlation rendah (data acak terhadap urutan fisik), BRIN akan membaca banyak block yang tidak relevan (lossy), dan B-Tree yang presisi per-baris akan menang meski ukurannya lebih besar.
 
 ---
 
@@ -227,7 +261,7 @@ Saya menggunakan AI assistant sebagai teman diskusi untuk memverifikasi langkah-
 Saya menggunakan AI assistant untuk membantu merancang pengujian partial index, expression index, dan covering index pada PostgreSQL, serta memahami mekanisme Visibility Map saat `VACUUM`. Pengujian dilakukan secara mandiri di terminal `psql` lokal dan seluruh angka hasil pengukuran diverifikasi langsung dari output `EXPLAIN (ANALYZE, BUFFERS)`.
 
 ### Muhammad Azkha Amorie
-(diisi sendiri)
+Saya menggunakan AI assistant untuk membantu menyusun query GIN pada JSONB (`jsonb_path_ops`) dan array `tags`, memahami correlation serta trade-off ukuran-kecepatan BRIN dibanding B-Tree pada kolom waktu, serta menyusun query `pg_stat_user_indexes` untuk mendaftar pemakaian index (Q17–Q21, Q29, Reflektif Q21). Seluruh query saya jalankan sendiri di terminal, dan angka pada laporan diambil langsung dari keluaran `EXPLAIN (ANALYZE, BUFFERS)`.
 
 ### Syifa Nazira
 Saya menggunakan AI assistant untuk mendiskusikan mekanisme selektivitas query, dampak perubahan `random_page_cost`, dan pembentukan extended statistics pada PostgreSQL. Seluruh eksekusi query dilakukan secara mandiri di terminal psql Docker lokal, dan seluruh data angka pada laporan ini diambil langsung dari keluaran `EXPLAIN (ANALYZE, BUFFERS)` nyata pada sistem saya.

@@ -1,0 +1,111 @@
+﻿=== Run 1 ===
+SET
+                                                                               QUERY PLAN                                                                               
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop  (cost=26.90..48.81 rows=19 width=232) (actual time=0.592..0.747 rows=35 loops=1)
+   Buffers: shared hit=129
+   ->  Hash Join  (cost=26.62..37.76 rows=19 width=136) (actual time=0.542..0.583 rows=35 loops=1)
+         Hash Cond: (x.indrelid = c.oid)
+         Buffers: shared hit=24
+         ->  Seq Scan on pg_index x  (cost=0.00..9.87 rows=287 width=8) (actual time=0.016..0.063 rows=275 loops=1)
+               Buffers: shared hit=7
+         ->  Hash  (cost=26.14..26.14 rows=39 width=132) (actual time=0.416..0.430 rows=5 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 9kB
+               Buffers: shared hit=17
+               ->  Hash Join  (cost=1.08..26.14 rows=39 width=132) (actual time=0.385..0.416 rows=5 loops=1)
+                     Hash Cond: (c.relnamespace = n.oid)
+                     Buffers: shared hit=17
+                     ->  Seq Scan on pg_class c  (cost=0.00..24.21 rows=157 width=72) (actual time=0.017..0.258 rows=160 loops=1)
+                           Filter: (relkind = ANY ('{r,t,m}'::"char"[]))
+                           Rows Removed by Filter: 449
+                           Buffers: shared hit=16
+                     ->  Hash  (cost=1.07..1.07 rows=1 width=68) (actual time=0.092..0.097 rows=1 loops=1)
+                           Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                           Buffers: shared hit=1
+                           ->  Seq Scan on pg_namespace n  (cost=0.00..1.07 rows=1 width=68) (actual time=0.072..0.075 rows=1 loops=1)
+                                 Filter: ((nspname <> ALL ('{pg_catalog,information_schema}'::name[])) AND (nspname !~ '^pg_toast'::text) AND (nspname = 'lab6'::name))
+                                 Rows Removed by Filter: 6
+                                 Buffers: shared hit=1
+   ->  Index Scan using pg_class_oid_index on pg_class i  (cost=0.28..0.57 rows=1 width=68) (actual time=0.002..0.002 rows=1 loops=35)
+         Index Cond: (oid = x.indexrelid)
+         Buffers: shared hit=105
+ Planning:
+   Buffers: shared hit=364
+ Planning Time: 3.177 ms
+ Execution Time: 0.969 ms
+(31 rows)
+
+=== Run 2 ===
+SET
+                                                                               QUERY PLAN                                                                               
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop  (cost=26.90..48.81 rows=19 width=232) (actual time=0.674..0.827 rows=35 loops=1)
+   Buffers: shared hit=129
+   ->  Hash Join  (cost=26.62..37.76 rows=19 width=136) (actual time=0.619..0.650 rows=35 loops=1)
+         Hash Cond: (x.indrelid = c.oid)
+         Buffers: shared hit=24
+         ->  Seq Scan on pg_index x  (cost=0.00..9.87 rows=287 width=8) (actual time=0.017..0.070 rows=275 loops=1)
+               Buffers: shared hit=7
+         ->  Hash  (cost=26.14..26.14 rows=39 width=132) (actual time=0.480..0.483 rows=5 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 9kB
+               Buffers: shared hit=17
+               ->  Hash Join  (cost=1.08..26.14 rows=39 width=132) (actual time=0.442..0.466 rows=5 loops=1)
+                     Hash Cond: (c.relnamespace = n.oid)
+                     Buffers: shared hit=17
+                     ->  Seq Scan on pg_class c  (cost=0.00..24.21 rows=157 width=72) (actual time=0.021..0.271 rows=160 loops=1)
+                           Filter: (relkind = ANY ('{r,t,m}'::"char"[]))
+                           Rows Removed by Filter: 449
+                           Buffers: shared hit=16
+                     ->  Hash  (cost=1.07..1.07 rows=1 width=68) (actual time=0.126..0.127 rows=1 loops=1)
+                           Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                           Buffers: shared hit=1
+                           ->  Seq Scan on pg_namespace n  (cost=0.00..1.07 rows=1 width=68) (actual time=0.098..0.100 rows=1 loops=1)
+                                 Filter: ((nspname <> ALL ('{pg_catalog,information_schema}'::name[])) AND (nspname !~ '^pg_toast'::text) AND (nspname = 'lab6'::name))
+                                 Rows Removed by Filter: 6
+                                 Buffers: shared hit=1
+   ->  Index Scan using pg_class_oid_index on pg_class i  (cost=0.28..0.57 rows=1 width=68) (actual time=0.002..0.002 rows=1 loops=35)
+         Index Cond: (oid = x.indexrelid)
+         Buffers: shared hit=105
+ Planning:
+   Buffers: shared hit=364
+ Planning Time: 3.242 ms
+ Execution Time: 1.067 ms
+(31 rows)
+
+=== Run 3 ===
+SET
+                                                                               QUERY PLAN                                                                               
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop  (cost=26.90..48.81 rows=19 width=232) (actual time=1.133..1.395 rows=35 loops=1)
+   Buffers: shared hit=129
+   ->  Hash Join  (cost=26.62..37.76 rows=19 width=136) (actual time=1.029..1.081 rows=35 loops=1)
+         Hash Cond: (x.indrelid = c.oid)
+         Buffers: shared hit=24
+         ->  Seq Scan on pg_index x  (cost=0.00..9.87 rows=287 width=8) (actual time=0.034..0.122 rows=275 loops=1)
+               Buffers: shared hit=7
+         ->  Hash  (cost=26.14..26.14 rows=39 width=132) (actual time=0.789..0.794 rows=5 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 9kB
+               Buffers: shared hit=17
+               ->  Hash Join  (cost=1.08..26.14 rows=39 width=132) (actual time=0.717..0.759 rows=5 loops=1)
+                     Hash Cond: (c.relnamespace = n.oid)
+                     Buffers: shared hit=17
+                     ->  Seq Scan on pg_class c  (cost=0.00..24.21 rows=157 width=72) (actual time=0.037..0.418 rows=160 loops=1)
+                           Filter: (relkind = ANY ('{r,t,m}'::"char"[]))
+                           Rows Removed by Filter: 449
+                           Buffers: shared hit=16
+                     ->  Hash  (cost=1.07..1.07 rows=1 width=68) (actual time=0.245..0.247 rows=1 loops=1)
+                           Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                           Buffers: shared hit=1
+                           ->  Seq Scan on pg_namespace n  (cost=0.00..1.07 rows=1 width=68) (actual time=0.195..0.198 rows=1 loops=1)
+                                 Filter: ((nspname <> ALL ('{pg_catalog,information_schema}'::name[])) AND (nspname !~ '^pg_toast'::text) AND (nspname = 'lab6'::name))
+                                 Rows Removed by Filter: 6
+                                 Buffers: shared hit=1
+   ->  Index Scan using pg_class_oid_index on pg_class i  (cost=0.28..0.57 rows=1 width=68) (actual time=0.004..0.004 rows=1 loops=35)
+         Index Cond: (oid = x.indexrelid)
+         Buffers: shared hit=105
+ Planning:
+   Buffers: shared hit=364
+ Planning Time: 4.678 ms
+ Execution Time: 1.846 ms
+(31 rows)
+

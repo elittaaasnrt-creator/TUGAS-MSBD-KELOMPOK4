@@ -5,13 +5,13 @@ Manajemen Sistem Basis Data, Kelompok 4. Mengukur Harga Sebuah Index.
 
 ## Identitas Kelompok dan Kontribusi Commit
 
-| Anggota                    | NIM       | GitHub                | Bagian                  | Commit           |
-| -------------------------- | --------- | --------------------- | ----------------------- | ---------------- |
-| Jelita Hati Sinurat        | 251402141 | elittaaasnrt-creator  | q00, Q1-Q6, Q31, README | 23cff18, d1cef82 |
-| M. Dzakwan Ismail Rangkuti | 251402014 | dzakwanrangkuti       | Q7-Q11, Q27             | a49cb1e          |
-| Agi Aginta Sembiring       | 251402059 | agisembiring263-pixel | Q12-Q16, Q28             | a49cb1e          |
-| M. Azkha Amorie            | 251402092 | azkhaamorie           | Q17-Q21, Q29            |                  |
-| Syifa Nazira               | 251402126 | ziraa94               | Q22-Q26, Q30            | ee0d6ce          |
+| Anggota | NIM | GitHub | Bagian | Commit |
+|---|---|---|---|---|
+| Jelita Hati Sinurat | 251402141 | elittaaasnrt-creator | Q00, Q1-Q6, Q31, README | [43cf833](https://github.com/elittaaasnrt-creator/TUGAS-MSBD-KELOMPOK4/commit/43cf833), [a3acca4](https://github.com/elittaaasnrt-creator/TUGAS-MSBD-KELOMPOK4/commit/a3acca4), [2c05a57](https://github.com/elittaaasnrt-creator/TUGAS-MSBD-KELOMPOK4/commit/2c05a57) |
+| M. Dzakwan Ismail Rangkuti | 251402014 | dzakwanrangkuti | Q7-Q11, Q27 | [9a7becd](https://github.com/elittaaasnrt-creator/TUGAS-MSBD-KELOMPOK4/commit/9a7becd) |
+| M. Agita Sembiring | 251402059 | agisembiring263-pixel | Q12-Q16, Q28 | [c9cc960](https://github.com/elittaaasnrt-creator/TUGAS-MSBD-KELOMPOK4/commit/c9cc960) |
+| M. Azzkha Amorie | 251402092 | azkhaamorie | Q17-Q21, Q29 | [04a6346](https://github.com/elittaaasnrt-creator/TUGAS-MSBD-KELOMPOK4/commit/04a6346) |
+| Syifa Nazira | 251402126 | ziraa94 | Q22-Q26, Q30 | [903ac77](https://github.com/elittaaasnrt-creator/TUGAS-MSBD-KELOMPOK4/commit/903ac77) |
 
 Tautan merge request: (diisi setelah semua branch digabung)
 

@@ -13,7 +13,7 @@ Manajemen Sistem Basis Data, Kelompok 4. Mengukur Harga Sebuah Index.
 | M. Azzkha Amorie | 251402092 | azkhaamorie | Q17-Q21, Q29 | [04a6346](https://github.com/elittaaasnrt-creator/TUGAS-MSBD-KELOMPOK4/commit/04a6346) |
 | Syifa Nazira | 251402126 | ziraa94 | Q22-Q26, Q30 | [903ac77](https://github.com/elittaaasnrt-creator/TUGAS-MSBD-KELOMPOK4/commit/903ac77) |
 
-Tautan merge request: (diisi setelah semua branch digabung)
+Tautan merge request: https://github.com/elittaaasnrt-creator/TUGAS-MSBD-KELOMPOK4/pull/10
 
 ## Kondisi Uji
 

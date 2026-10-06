@@ -81,7 +81,20 @@ Pada hot_longgar, UPDATE kolom catatan (tidak terindeks) menghasilkan 10.000 HOT
 (diisi setelah Q27-Q30 selesai)
 
 ## Penggunaan AI dan Verifikasi
+### Jelita Hati Sinurat
+Saya menggunakan AI assistant sebagai pendamping untuk menyusun perintah, mengatasi kendala teknis, dan merapikan jawaban serta berkas laporan. Semua query saya jalankan sendiri, dan seluruh angka berasal dari keluaran terminal saya. Hasilnya saya verifikasi dengan mencocokkan antar-angka, misalnya jumlah halaman x 8 KB dengan ukuran heap.
 
-(diisi bersama, sebutkan alat AI yang dipakai, bagian yang dibantu, dan cara setiap angka serta jawaban diverifikasi ulang)
+### M. Ismail Dzakwan Rangkuti
+(diisi sendiri)
+
+### Agi Aginta Sembiring
+(diisi sendiri)
+
+### Muhammad Azkha Amorie
+(diisi sendiri)
+
+### Syifa Nazira
+(diisi sendiri)
+
 '@ | Set-Content latihan\p06\laporan.md -Encoding utf8
 

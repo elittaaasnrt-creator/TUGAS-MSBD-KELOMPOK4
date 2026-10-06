@@ -1,0 +1,66 @@
+﻿=== Run 1 ===
+SET
+                                                                                 QUERY PLAN                                                                                  
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ GroupAggregate  (cost=41795.18..88589.32 rows=3 width=23) (actual time=369.398..1171.425 rows=3 loops=1)
+   Group Key: event_log.status
+   Buffers: shared hit=1700 read=1692
+   InitPlan 1
+     ->  Aggregate  (cost=41794.75..41794.76 rows=1 width=8) (actual time=357.951..357.954 rows=1 loops=1)
+           Buffers: shared hit=42 read=1654
+           ->  Index Only Scan using idx_event_status on event_log event_log_1  (cost=0.43..36794.99 rows=1999904 width=0) (actual time=0.030..205.636 rows=2000000 loops=1)
+                 Heap Fetches: 0
+                 Buffers: shared hit=42 read=1654
+   ->  Index Only Scan using idx_event_status on event_log  (cost=0.43..36794.99 rows=1999904 width=7) (actual time=0.283..378.941 rows=2000000 loops=1)
+         Heap Fetches: 0
+         Buffers: shared hit=1658 read=38
+ Planning:
+   Buffers: shared hit=224 read=36 dirtied=1
+ Planning Time: 3.021 ms
+ Execution Time: 1172.782 ms
+(16 rows)
+
+=== Run 2 ===
+SET
+                                                                                 QUERY PLAN                                                                                  
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ GroupAggregate  (cost=41795.18..88589.32 rows=3 width=23) (actual time=314.288..653.408 rows=3 loops=1)
+   Group Key: event_log.status
+   Buffers: shared hit=3392
+   InitPlan 1
+     ->  Aggregate  (cost=41794.75..41794.76 rows=1 width=8) (actual time=302.973..302.975 rows=1 loops=1)
+           Buffers: shared hit=1696
+           ->  Index Only Scan using idx_event_status on event_log event_log_1  (cost=0.43..36794.99 rows=1999904 width=0) (actual time=0.041..169.049 rows=2000000 loops=1)
+                 Heap Fetches: 0
+                 Buffers: shared hit=1696
+   ->  Index Only Scan using idx_event_status on event_log  (cost=0.43..36794.99 rows=1999904 width=7) (actual time=0.041..160.824 rows=2000000 loops=1)
+         Heap Fetches: 0
+         Buffers: shared hit=1696
+ Planning:
+   Buffers: shared hit=260
+ Planning Time: 1.142 ms
+ Execution Time: 653.553 ms
+(16 rows)
+
+=== Run 3 ===
+SET
+                                                                                 QUERY PLAN                                                                                  
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ GroupAggregate  (cost=41795.18..88589.32 rows=3 width=23) (actual time=307.256..684.730 rows=3 loops=1)
+   Group Key: event_log.status
+   Buffers: shared hit=3392
+   InitPlan 1
+     ->  Aggregate  (cost=41794.75..41794.76 rows=1 width=8) (actual time=297.366..297.368 rows=1 loops=1)
+           Buffers: shared hit=1696
+           ->  Index Only Scan using idx_event_status on event_log event_log_1  (cost=0.43..36794.99 rows=1999904 width=0) (actual time=0.036..167.352 rows=2000000 loops=1)
+                 Heap Fetches: 0
+                 Buffers: shared hit=1696
+   ->  Index Only Scan using idx_event_status on event_log  (cost=0.43..36794.99 rows=1999904 width=7) (actual time=0.035..180.555 rows=2000000 loops=1)
+         Heap Fetches: 0
+         Buffers: shared hit=1696
+ Planning:
+   Buffers: shared hit=260
+ Planning Time: 0.968 ms
+ Execution Time: 684.858 ms
+(16 rows)
+

@@ -1,0 +1,42 @@
+﻿=== Run 1 ===
+SET
+                                                 QUERY PLAN                                                  
+-------------------------------------------------------------------------------------------------------------
+ Seq Scan on event_log  (cost=0.00..88566.56 rows=1 width=194) (actual time=479.634..479.636 rows=0 loops=1)
+   Filter: ((wilayah = 'Sumatera Utara'::text) AND (kota = 'Medan'::text))
+   Rows Removed by Filter: 2000000
+   Buffers: shared hit=14487 read=44081
+ Planning:
+   Buffers: shared hit=229
+ Planning Time: 1.041 ms
+ Execution Time: 479.706 ms
+(8 rows)
+
+=== Run 2 ===
+SET
+                                                 QUERY PLAN                                                  
+-------------------------------------------------------------------------------------------------------------
+ Seq Scan on event_log  (cost=0.00..88566.56 rows=1 width=194) (actual time=546.313..546.315 rows=0 loops=1)
+   Filter: ((wilayah = 'Sumatera Utara'::text) AND (kota = 'Medan'::text))
+   Rows Removed by Filter: 2000000
+   Buffers: shared hit=14500 read=44068
+ Planning:
+   Buffers: shared hit=229
+ Planning Time: 0.946 ms
+ Execution Time: 546.433 ms
+(8 rows)
+
+=== Run 3 ===
+SET
+                                                 QUERY PLAN                                                  
+-------------------------------------------------------------------------------------------------------------
+ Seq Scan on event_log  (cost=0.00..88566.56 rows=1 width=194) (actual time=475.209..475.211 rows=0 loops=1)
+   Filter: ((wilayah = 'Sumatera Utara'::text) AND (kota = 'Medan'::text))
+   Rows Removed by Filter: 2000000
+   Buffers: shared hit=14532 read=44036
+ Planning:
+   Buffers: shared hit=229
+ Planning Time: 0.844 ms
+ Execution Time: 475.339 ms
+(8 rows)
+

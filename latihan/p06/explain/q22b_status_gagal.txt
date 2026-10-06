@@ -1,0 +1,36 @@
+﻿=== Run 1 ===
+SET
+                                                              QUERY PLAN                                                               
+---------------------------------------------------------------------------------------------------------------------------------------
+ Index Scan using ev_gagal_idx on event_log  (cost=0.29..2143.26 rows=38198 width=194) (actual time=0.233..269.799 rows=40000 loops=1)
+   Buffers: shared hit=9803 read=30287 written=3
+ Planning:
+   Buffers: shared hit=236
+ Planning Time: 1.549 ms
+ Execution Time: 276.260 ms
+(6 rows)
+
+=== Run 2 ===
+SET
+                                                              QUERY PLAN                                                               
+---------------------------------------------------------------------------------------------------------------------------------------
+ Index Scan using ev_gagal_idx on event_log  (cost=0.29..2143.26 rows=38198 width=194) (actual time=0.033..518.898 rows=40000 loops=1)
+   Buffers: shared hit=38 read=40052 written=8
+ Planning:
+   Buffers: shared hit=234 read=2
+ Planning Time: 1.131 ms
+ Execution Time: 528.497 ms
+(6 rows)
+
+=== Run 3 ===
+SET
+                                                              QUERY PLAN                                                               
+---------------------------------------------------------------------------------------------------------------------------------------
+ Index Scan using ev_gagal_idx on event_log  (cost=0.29..2143.26 rows=38198 width=194) (actual time=0.080..254.250 rows=40000 loops=1)
+   Buffers: shared hit=38 read=40052
+ Planning:
+   Buffers: shared hit=194 read=42
+ Planning Time: 2.613 ms
+ Execution Time: 259.979 ms
+(6 rows)
+

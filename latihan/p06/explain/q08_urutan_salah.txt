@@ -1,0 +1,45 @@
+﻿=== Run 1 ===
+SET
+                                                                   QUERY PLAN                                                                   
+------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.43..25256.85 rows=17 width=22) (actual time=3.847..108.779 rows=20 loops=1)
+   Buffers: shared hit=19 read=2904
+   ->  Index Scan Backward using ev_salah_idx on event_log  (cost=0.43..25256.85 rows=17 width=22) (actual time=3.841..108.723 rows=20 loops=1)
+         Index Cond: ((terjadi_pada >= '2024-05-31 17:00:00+00'::timestamp with time zone) AND (customer_id = 4211))
+         Buffers: shared hit=19 read=2904
+ Planning:
+   Buffers: shared hit=129 read=1
+ Planning Time: 1.132 ms
+ Execution Time: 108.893 ms
+(9 rows)
+
+=== Run 2 ===
+SET
+                                                                  QUERY PLAN                                                                   
+-----------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.43..25256.85 rows=17 width=22) (actual time=0.964..39.986 rows=20 loops=1)
+   Buffers: shared hit=2923
+   ->  Index Scan Backward using ev_salah_idx on event_log  (cost=0.43..25256.85 rows=17 width=22) (actual time=0.961..39.949 rows=20 loops=1)
+         Index Cond: ((terjadi_pada >= '2024-05-31 17:00:00+00'::timestamp with time zone) AND (customer_id = 4211))
+         Buffers: shared hit=2923
+ Planning:
+   Buffers: shared hit=122
+ Planning Time: 0.617 ms
+ Execution Time: 40.084 ms
+(9 rows)
+
+=== Run 3 ===
+SET
+                                                                  QUERY PLAN                                                                   
+-----------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.43..25256.85 rows=17 width=22) (actual time=1.744..25.964 rows=20 loops=1)
+   Buffers: shared hit=2923
+   ->  Index Scan Backward using ev_salah_idx on event_log  (cost=0.43..25256.85 rows=17 width=22) (actual time=1.740..25.941 rows=20 loops=1)
+         Index Cond: ((terjadi_pada >= '2024-05-31 17:00:00+00'::timestamp with time zone) AND (customer_id = 4211))
+         Buffers: shared hit=2923
+ Planning:
+   Buffers: shared hit=122
+ Planning Time: 0.591 ms
+ Execution Time: 26.133 ms
+(9 rows)
+

@@ -1,0 +1,11 @@
+﻿           index            | ukuran  |   byte   
+----------------------------+---------+----------
+ lab6.event_log_pkey        | 43 MB   | 44941312
+ lab6.hot_penuh_pkey        | 2208 kB |  2260992
+ lab6.hot_longgar_pkey      | 2208 kB |  2260992
+ lab6.hot_penuh_nilai_idx   | 2208 kB |  2260992
+ lab6.hot_longgar_nilai_idx | 2208 kB |  2260992
+ lab6.ev_salah_idx          | 60 MB   | 63012864
+ lab6.ev_benar_idx          | 60 MB   | 63102976
+(7 rows)
+

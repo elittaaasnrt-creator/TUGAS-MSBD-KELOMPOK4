@@ -1,0 +1,48 @@
+﻿=== Run 1 ===
+SET
+                                                                             QUERY PLAN                                                                             
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=1500.90..1500.91 rows=1 width=8) (actual time=23.098..23.101 rows=1 loops=1)
+   Buffers: shared hit=1 read=130
+   ->  Index Only Scan using ev_ts_btree on event_log  (cost=0.43..1388.85 rows=44821 width=0) (actual time=0.222..16.222 rows=46523 loops=1)
+         Index Cond: ((terjadi_pada >= '2024-02-29 17:00:00+00'::timestamp with time zone) AND (terjadi_pada < '2024-03-07 17:00:00+00'::timestamp with time zone))
+         Heap Fetches: 0
+         Buffers: shared hit=1 read=130
+ Planning:
+   Buffers: shared hit=185 read=1
+ Planning Time: 3.352 ms
+ Execution Time: 23.224 ms
+(10 rows)
+
+=== Run 2 ===
+SET
+                                                                             QUERY PLAN                                                                             
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=1500.90..1500.91 rows=1 width=8) (actual time=13.845..13.847 rows=1 loops=1)
+   Buffers: shared hit=131
+   ->  Index Only Scan using ev_ts_btree on event_log  (cost=0.43..1388.85 rows=44821 width=0) (actual time=0.075..9.188 rows=46523 loops=1)
+         Index Cond: ((terjadi_pada >= '2024-02-29 17:00:00+00'::timestamp with time zone) AND (terjadi_pada < '2024-03-07 17:00:00+00'::timestamp with time zone))
+         Heap Fetches: 0
+         Buffers: shared hit=131
+ Planning:
+   Buffers: shared hit=186
+ Planning Time: 1.285 ms
+ Execution Time: 13.942 ms
+(10 rows)
+
+=== Run 3 ===
+SET
+                                                                             QUERY PLAN                                                                             
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=1500.90..1500.91 rows=1 width=8) (actual time=14.312..14.314 rows=1 loops=1)
+   Buffers: shared hit=131
+   ->  Index Only Scan using ev_ts_btree on event_log  (cost=0.43..1388.85 rows=44821 width=0) (actual time=0.161..9.292 rows=46523 loops=1)
+         Index Cond: ((terjadi_pada >= '2024-02-29 17:00:00+00'::timestamp with time zone) AND (terjadi_pada < '2024-03-07 17:00:00+00'::timestamp with time zone))
+         Heap Fetches: 0
+         Buffers: shared hit=131
+ Planning:
+   Buffers: shared hit=186
+ Planning Time: 1.088 ms
+ Execution Time: 14.410 ms
+(10 rows)
+

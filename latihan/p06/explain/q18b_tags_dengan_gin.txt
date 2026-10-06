@@ -1,0 +1,57 @@
+﻿=== Run 1 ===
+SET
+                                                                QUERY PLAN                                                                 
+-------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=62615.08..62615.09 rows=1 width=8) (actual time=726.766..726.769 rows=1 loops=1)
+   Buffers: shared hit=242 read=58568 written=509
+   ->  Bitmap Heap Scan on event_log  (cost=1562.97..62201.06 rows=165607 width=0) (actual time=279.457..702.420 rows=166667 loops=1)
+         Recheck Cond: (tags @> '{kanal:1,sumber:2}'::text[])
+         Heap Blocks: exact=58568
+         Buffers: shared hit=242 read=58568 written=509
+         ->  Bitmap Index Scan on ev_tags_gin  (cost=0.00..1521.57 rows=165607 width=0) (actual time=245.652..245.653 rows=166667 loops=1)
+               Index Cond: (tags @> '{kanal:1,sumber:2}'::text[])
+               Buffers: shared hit=242
+ Planning:
+   Buffers: shared hit=221 read=6
+ Planning Time: 1.318 ms
+ Execution Time: 727.344 ms
+(13 rows)
+
+=== Run 2 ===
+SET
+                                                                QUERY PLAN                                                                 
+-------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=62615.08..62615.09 rows=1 width=8) (actual time=499.329..499.332 rows=1 loops=1)
+   Buffers: shared hit=72 read=58738
+   ->  Bitmap Heap Scan on event_log  (cost=1562.97..62201.06 rows=165607 width=0) (actual time=116.322..478.064 rows=166667 loops=1)
+         Recheck Cond: (tags @> '{kanal:1,sumber:2}'::text[])
+         Heap Blocks: exact=58568
+         Buffers: shared hit=72 read=58738
+         ->  Bitmap Index Scan on ev_tags_gin  (cost=0.00..1521.57 rows=165607 width=0) (actual time=103.869..103.870 rows=166667 loops=1)
+               Index Cond: (tags @> '{kanal:1,sumber:2}'::text[])
+               Buffers: shared hit=72 read=170
+ Planning:
+   Buffers: shared hit=194 read=33
+ Planning Time: 2.020 ms
+ Execution Time: 499.897 ms
+(13 rows)
+
+=== Run 3 ===
+SET
+                                                               QUERY PLAN                                                                
+-----------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=62615.08..62615.09 rows=1 width=8) (actual time=673.850..673.852 rows=1 loops=1)
+   Buffers: shared hit=72 read=58738
+   ->  Bitmap Heap Scan on event_log  (cost=1562.97..62201.06 rows=165607 width=0) (actual time=120.744..645.077 rows=166667 loops=1)
+         Recheck Cond: (tags @> '{kanal:1,sumber:2}'::text[])
+         Heap Blocks: exact=58568
+         Buffers: shared hit=72 read=58738
+         ->  Bitmap Index Scan on ev_tags_gin  (cost=0.00..1521.57 rows=165607 width=0) (actual time=91.345..91.346 rows=166667 loops=1)
+               Index Cond: (tags @> '{kanal:1,sumber:2}'::text[])
+               Buffers: shared hit=72 read=170
+ Planning:
+   Buffers: shared hit=194 read=33
+ Planning Time: 2.033 ms
+ Execution Time: 674.213 ms
+(13 rows)
+

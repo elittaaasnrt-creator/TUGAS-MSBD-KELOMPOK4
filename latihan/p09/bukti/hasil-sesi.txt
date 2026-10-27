@@ -1,0 +1,463 @@
+HASIL SESI - LATIHAN P09 (Q1-Q5) - Jelita
+Lingkungan: PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu
+Alat: psql di dalam container Docker (msbd-pg), dua terminal PowerShell
+Konfigurasi: transaction_isolation = read committed, deadlock_timeout = 1s,
+             lock_timeout = 0, statement_timeout = 0,
+             idle_in_transaction_session_timeout = 0
+
+=== Q1 - Kondisi awal ===
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+ rekening_id | pemilik |   saldo
+-------------+---------+------------
+           1 | Ani     | 1000000.00
+           2 | Budi    | 1000000.00
+
+SELECT SUM(saldo) AS total_saldo FROM lab9.rekening;
+ total_saldo
+-------------
+  2000000.00
+
+=== Q2 - Sebelum COMMIT ===
+--- Sesi A ---
+BEGIN;
+UPDATE lab9.rekening SET saldo = saldo - 100000 WHERE rekening_id = 1;
+UPDATE 1
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     |  900000.00
+           2 | Budi    | 1000000.00
+(transaksi belum di-COMMIT)
+
+--- Sesi B ---
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     | 1000000.00
+           2 | Budi    | 1000000.00
+=> Sesi B belum melihat perubahan Sesi A.
+
+=== Q3a - COMMIT ===
+--- Sesi A ---
+COMMIT;
+COMMIT
+
+--- Sesi B ---
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     |  900000.00
+           2 | Budi    | 1000000.00
+=> Setelah COMMIT, perubahan bertahan dan terlihat di Sesi B.
+
+=== Q3b - ROLLBACK (data direset lewat q00_setup.sql) ===
+--- Sesi A ---
+BEGIN;
+UPDATE lab9.rekening SET saldo = saldo - 100000 WHERE rekening_id = 1;
+UPDATE 1
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     |  900000.00
+           2 | Budi    | 1000000.00
+ROLLBACK;
+ROLLBACK
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     | 1000000.00
+           2 | Budi    | 1000000.00
+=> Setelah ROLLBACK, perubahan batal; Ani kembali 1000000.
+
+=== Q4 - SAVEPOINT ===
+--- Sesi A ---
+BEGIN;
+UPDATE lab9.rekening SET saldo = saldo - 100000 WHERE rekening_id = 1;
+UPDATE 1
+SAVEPOINT sp1;
+UPDATE lab9.rekening SET saldo = saldo - 200000 WHERE rekening_id = 2;
+UPDATE 1
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     | 900000.00
+           2 | Budi    | 800000.00
+ROLLBACK TO SAVEPOINT sp1;
+ROLLBACK
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     |  900000.00
+           2 | Budi    | 1000000.00
+COMMIT;
+COMMIT
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     |  900000.00
+           2 | Budi    | 1000000.00
+=> Hanya update setelah savepoint (Budi) yang dibatalkan; update Ani bertahan.
+
+=== Q5 - Atomicity dan consistency (CHECK saldo >= 0) ===
+--- Sesi A ---
+\set VERBOSITY verbose
+BEGIN;
+UPDATE lab9.rekening SET saldo = saldo - 100000 WHERE rekening_id = 1;
+UPDATE 1
+UPDATE lab9.rekening SET saldo = saldo - 99999999 WHERE rekening_id = 2;
+ERROR:  23514: new row for relation "rekening" violates check constraint "rekening_saldo_check"
+DETAIL:  Failing row contains (2, Budi, -98999999.00).
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+ERROR:  25P02: current transaction is aborted, commands ignored until end of transaction block
+ROLLBACK;
+ROLLBACK
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     |  900000.00
+           2 | Budi    | 1000000.00
+=> Update Ani yang valid ikut batal (atomicity); CHECK menolak saldo negatif (consistency).
+
+=== Pemulihan data ===
+Data dikembalikan ke kondisi awal dengan menjalankan ulang q00_setup.sql:
+           1 | Ani     | 1000000.00
+           2 | Budi    | 1000000.00
+
+HASIL SESI - LATIHAN P09 (Q6-Q11) - Mael
+Lingkungan: PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu
+Alat: psql di dalam container Docker (msbd-pg), dua terminal PowerShell (Sesi A dan Sesi B)
+Skema: lab9
+Data Awal: Ani (rekening_id 1) = 1000000.00, Budi (rekening_id 2) = 1000000.00
+
+=== Q6 - Non-repeatable Read (READ COMMITTED) ===
+--- Sesi A ---
+BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;
+BEGIN
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+   saldo    
+------------
+ 1000000.00
+
+--- Sesi B ---
+BEGIN;
+UPDATE lab9.rekening SET saldo = 1200000 WHERE rekening_id = 1;
+UPDATE 1
+COMMIT;
+COMMIT
+
+--- Sesi A ---
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+   saldo    
+------------
+ 1200000.00
+COMMIT;
+COMMIT
+=> Non-repeatable Read terjadi: Nilai saldo berubah dari 1.000.000 menjadi 1.200.000 dalam transaksi A karena snapshot dibuat per statement.
+
+=== Q7 - REPEATABLE READ ===
+--- Sesi A ---
+BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+   saldo    
+------------
+ 1200000.00
+
+--- Sesi B ---
+BEGIN;
+UPDATE lab9.rekening SET saldo = 1500000 WHERE rekening_id = 1;
+UPDATE 1
+COMMIT;
+COMMIT
+
+--- Sesi A ---
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+   saldo    
+------------
+ 1200000.00
+COMMIT;
+COMMIT
+=> Non-repeatable Read dicegah: Nilai saldo tetap konsisten 1.200.000 karena snapshot dibekukan di awal transaksi.
+
+=== Q8 - Phantom Read ===
+Kondisi hitung: saldo >= 1000000.
+
+1. READ COMMITTED
+--- Sesi A ---
+BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SELECT COUNT(*) FROM lab9.rekening WHERE saldo >= 1000000;
+ count 
+-------
+     2
+
+--- Sesi B ---
+INSERT INTO lab9.rekening VALUES (3, 'Citra', 2000000);
+INSERT 0 1
+COMMIT;
+
+--- Sesi A ---
+SELECT COUNT(*) FROM lab9.rekening WHERE saldo >= 1000000;
+ count 
+-------
+     3
+COMMIT;
+=> Phantom Read terjadi: Jumlah baris bertambah dari 2 menjadi 3 saat dibaca ulang.
+
+2. REPEATABLE READ
+--- Sesi A ---
+BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SELECT COUNT(*) FROM lab9.rekening WHERE saldo >= 1000000;
+ count 
+-------
+     3
+
+--- Sesi B ---
+INSERT INTO lab9.rekening VALUES (4, 'Doni', 2500000);
+INSERT 0 1
+COMMIT;
+
+--- Sesi A ---
+SELECT COUNT(*) FROM lab9.rekening WHERE saldo >= 1000000;
+ count 
+-------
+     3
+COMMIT;
+=> Phantom Read dicegah: Nilai COUNT tetap 3; engine MVCC PostgreSQL mengisolasi transaksi dari penambahan baris baru sesi lain.
+
+=== Q9 - Dirty Read dan READ UNCOMMITTED ===
+--- Sesi A ---
+BEGIN;
+UPDATE lab9.rekening SET saldo = 5000000 WHERE rekening_id = 1;
+UPDATE 1
+(tidak di-COMMIT)
+
+--- Sesi B ---
+BEGIN TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+BEGIN
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+   saldo    
+------------
+ 1500000.00
+COMMIT;
+COMMIT
+
+--- Sesi A ---
+ROLLBACK;
+ROLLBACK
+=> Dirty Read tidak terjadi: Nilai uncommitted (5.000.000) tidak terbaca oleh Sesi B; engine PostgreSQL mengeksekusi READ UNCOMMITTED sama dengan READ COMMITTED.
+
+=== Q10 - Lost Update ===
+Isolation level: READ COMMITTED. Saldo awal rekening 1 di-reset ke 1.000.000.
+
+--- Sesi A ---
+BEGIN;
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+-- Membaca: 1000000.00
+
+--- Sesi B ---
+BEGIN;
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+-- Membaca: 1000000.00
+
+--- Sesi A ---
+-- Aplikasi A menghitung +200000:
+UPDATE lab9.rekening SET saldo = 1200000 WHERE rekening_id = 1;
+UPDATE 1
+COMMIT;
+COMMIT
+
+--- Sesi B ---
+-- Aplikasi B menghitung -100000 (dari basis 1000000):
+UPDATE lab9.rekening SET saldo = 900000 WHERE rekening_id = 1;
+UPDATE 1
+COMMIT;
+COMMIT
+
+--- Verifikasi Hasil Akhir ---
+SELECT * FROM lab9.rekening WHERE rekening_id = 1;
+ rekening_id | pemilik |   saldo   
+-------------+---------+-----------
+           1 | Ani     | 900000.00
+=> Lost Update terjadi: Setoran 200.000 dari Sesi A hilang tertimpa karena Sesi B menulis nilai tetap hasil hitungan bacaan lama.
+
+=== Q11 - Ringkasan Anomali ===
+- Non-repeatable read: Terjadi di READ COMMITTED, dicegah di REPEATABLE READ.
+- Phantom read: Terjadi di READ COMMITTED, dicegah di REPEATABLE READ oleh MVCC PostgreSQL.
+- Dirty read: Tidak pernah terjadi di PostgreSQL (READ UNCOMMITTED diperlakukan sebagai READ COMMITTED).
+- Lost update: Terjadi di READ COMMITTED jika penulisan memakai nilai konstan hasil hitung lokal aplikasi (solusi: pembaruan atomik atau SELECT FOR UPDATE).
+
+=== Pemulihan Data ===
+DELETE FROM lab9.rekening WHERE rekening_id > 2;
+UPDATE lab9.rekening SET saldo = 1000000 WHERE rekening_id IN (1, 2);
+
+HASIL SESI - LATIHAN P09 (Q19-Q23) - Azkha
+
+=== Q19 ===
+--- Sesi A ---
+BEGIN;
+SELECT * FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+ 1 | Ani | 1000000.00
+COMMIT;
+--- Sesi B --- (menggantung sampai A COMMIT)
+BEGIN;
+SELECT * FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+ 1 | Ani | 1000000.00
+COMMIT;
+
+=== Q20 ===
+--- Sesi A ---
+BEGIN;
+SELECT * FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+SELECT * FROM lab9.rekening WHERE rekening_id = 2 FOR UPDATE;
+ 2 | Budi | 1000000.00
+--- Sesi B ---
+BEGIN;
+SELECT * FROM lab9.rekening WHERE rekening_id = 2 FOR UPDATE;
+SELECT * FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+ERROR:  40P01: deadlock detected
+DETAIL:  Process 392 waits for ShareLock on transaction 1023; blocked by process 377.
+Process 377 waits for ShareLock on transaction 1024; blocked by process 392.
+CONTEXT:  while locking tuple (0,1) in relation "rekening"
+
+=== Q21 ===
+--- Sesi A ---
+BEGIN;
+SELECT * FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+SELECT * FROM lab9.rekening WHERE rekening_id = 2 FOR UPDATE;
+COMMIT;
+--- Sesi B --- (menunggu A, lalu lanjut)
+BEGIN;
+SELECT * FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+SELECT * FROM lab9.rekening WHERE rekening_id = 2 FOR UPDATE;
+COMMIT;
+
+=== Q22 --- Sesi C (saat B menggantung) ===
+ pid |        state        | wait_event_type |  wait_event   | diblokir_oleh
+ 377 | idle in transaction | Client          | ClientRead    | {}
+ 392 | active              | Lock            | transactionid | {377}
+ locktype      |   mode    | granted | pid
+ transactionid | ShareLock | f       | 392
+
+=== Q23 ===
+deadlock_timeout = 1s; lock_timeout = 0; statement_timeout = 0;
+idle_in_transaction_session_timeout = 0
+BEGIN; SET LOCAL statement_timeout = '1s'; SELECT pg_sleep(3);
+ERROR:  canceling statement due to statement timeout
+--- Sesi B ---
+BEGIN; SET LOCAL lock_timeout = '2s';
+SELECT * FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+ERROR:  canceling statement due to lock timeout
+--- Sesi C ---
+BEGIN; SET LOCAL idle_in_transaction_session_timeout = '5s'; (diam ±8 detik)
+SELECT 1;
+FATAL:  terminating connection due to idle-in-transaction timeout
+
+HASIL SESI - LATIHAN P09 (Q12-Q17) - Agi
+Lingkungan: PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2), psql di container Docker (msbd-pg),
+            dua terminal PowerShell (Sesi A dan Sesi B), database pagila, skema lab9.
+Catatan: baris bertanda [TIDAK TERCETAK] adalah langkah yang dijalankan sesuai urutan
+         eksperimen, tetapi keluarannya sudah tidak ada di scroll terminal.
+
+=== Q12 - Pembaruan atomik ===
+Skenario: kedua sesi mengurangi saldo Ani Rp10.000 dengan SET saldo = saldo - 10000.
+--- Sesi A --- [TIDAK TERCETAK] (UPDATE saldo = saldo - 10000, lalu COMMIT; Ani menjadi 990000)
+--- Sesi B ---
+BEGIN;
+UPDATE lab9.rekening SET saldo = saldo - 10000 WHERE rekening_id = 1 AND saldo >= 10000;
+BEGIN
+UPDATE 1
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+ rekening_id | pemilik |   saldo
+-------------+---------+------------
+           1 | Ani     |  980000.00
+           2 | Budi    | 1000000.00
+COMMIT;
+COMMIT
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     |  980000.00
+           2 | Budi    | 1000000.00
+=> Dua pengurangan 10000 sama-sama tercatat: 1000000 -> 990000 -> 980000. Tidak ada yang hilang.
+
+=== Q13 - SELECT ... FOR UPDATE ===
+--- Sesi A --- [TIDAK TERCETAK]
+BEGIN; SELECT saldo ... WHERE rekening_id = 1 FOR UPDATE;
+UPDATE ... SET saldo = 990000 WHERE rekening_id = 1; COMMIT;
+--- Sesi B ---
+(BEGIN; SELECT yang sama, menunggu sampai A COMMIT; lama menunggu tidak tercetak)
+BEGIN;
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+   saldo
+-----------
+ 990000.00
+UPDATE lab9.rekening SET saldo = 980000 WHERE rekening_id = 1;
+UPDATE 1
+COMMIT;
+COMMIT
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     |  980000.00
+           2 | Budi    | 1000000.00
+=> Setelah A COMMIT, B langsung membaca 990000.00 (nilai terbaru), bukan 1000000.00.
+
+=== Q14 - Optimistic locking (version_no) ===
+Persiapan (tabel dibuat ulang lalu ditambah kolom versi):
+ALTER TABLE lab9.rekening ADD COLUMN version_no INT NOT NULL DEFAULT 1;
+--- Sesi A ---
+SELECT saldo, version_no FROM lab9.rekening WHERE rekening_id = 1;
+   saldo    | version_no
+------------+------------
+ 1000000.00 |          1
+UPDATE lab9.rekening SET saldo = 990000, version_no = version_no + 1
+WHERE rekening_id = 1 AND version_no = 1;
+UPDATE 1
+--- Sesi B --- (pembacaan awal 1000000.00 | 1 [TIDAK TERCETAK])
+UPDATE lab9.rekening SET saldo = 990000, version_no = version_no + 1
+WHERE rekening_id = 1 AND version_no = 1;
+UPDATE 0
+=> UPDATE 0: tidak ada baris cocok karena versi sudah 2. Aplikasi tahu datanya diubah sesi lain.
+SELECT saldo, version_no FROM lab9.rekening WHERE rekening_id = 1;
+   saldo   | version_no
+-----------+------------
+ 990000.00 |          2
+UPDATE lab9.rekening SET saldo = 980000, version_no = version_no + 1
+WHERE rekening_id = 1 AND version_no = 2;
+UPDATE 1
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     |  980000.00 |          3
+           2 | Budi    | 1000000.00 |          1
+
+=== Q15 - MVCC dan snapshot ===
+--- Sesi A --- (BEGIN ISOLATION LEVEL REPEATABLE READ; pembacaan pertama 980000.00 dan
+                pembacaan saat B belum COMMIT [TIDAK TERCETAK])
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;   -- setelah B COMMIT
+   saldo
+-----------
+ 980000.00
+COMMIT;
+COMMIT
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+   saldo
+-----------
+ 975000.00
+--- Sesi B ---
+BEGIN;
+UPDATE lab9.rekening SET saldo = saldo - 5000 WHERE rekening_id = 1;
+BEGIN
+UPDATE 1
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+   saldo
+-----------
+ 975000.00
+COMMIT;
+COMMIT
+=> B sudah COMMIT 975000, tetapi snapshot A tetap 980000 sampai A COMMIT.
+
+=== Q16 - xmin dan xmax ===
+--- Sesi A --- (pembacaan awal dan SELECT ... FOR UPDATE [TIDAK TERCETAK])
+ROLLBACK;
+ROLLBACK
+SELECT rekening_id, saldo, xmin, xmax FROM lab9.rekening WHERE rekening_id = 1;
+ rekening_id |   saldo   | xmin | xmax
+-------------+-----------+------+------
+           1 | 975000.00 | 1116 | 1118
+--- Sesi B ---
+SELECT rekening_id, saldo, xmin, xmax FROM lab9.rekening WHERE rekening_id = 1;
+ rekening_id |   saldo   | xmin | xmax
+-------------+-----------+------+------
+           1 | 975000.00 | 1116 | 1118
+=> xmax = 1118 terisi padahal baris tidak dihapus dan saldo tetap 975000.00.
+
+=== Q17 - Dead tuple ===
+SELECT n_live_tup, n_dead_tup FROM pg_stat_user_tables
+WHERE schemaname = 'lab9' AND relname = 'rekening';
+ n_live_tup | n_dead_tup
+------------+------------
+          2 |          6
+=> Statistik bersifat perkiraan. Tabel hanya punya 2 baris hidup, tetapi sekitar 6 versi lama
+   menunggu dibersihkan vacuum.
+[OPSIONAL - tempel di sini jika dijalankan: hasil VACUUM (VERBOSE) lab9.rekening;]
+
+=== Pemulihan data (Agi) ===
+Tabel dibuat ulang tanpa kolom version_no dengan menjalankan ulang q00_setup.sql:
+[TEMPEL OUTPUT SELECT dari q00_setup.sql: Ani 1000000.00, Budi 1000000.00]

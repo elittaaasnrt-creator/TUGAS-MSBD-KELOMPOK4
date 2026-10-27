@@ -105,6 +105,172 @@ Data dikembalikan ke kondisi awal dengan menjalankan ulang q00_setup.sql:
            1 | Ani     | 1000000.00
            2 | Budi    | 1000000.00
 
+HASIL SESI - LATIHAN P09 (Q6-Q11) - Mael
+Lingkungan: PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu
+Alat: psql di dalam container Docker (msbd-pg), dua terminal PowerShell (Sesi A dan Sesi B)
+Skema: lab9
+Data Awal: Ani (rekening_id 1) = 1000000.00, Budi (rekening_id 2) = 1000000.00
+
+=== Q6 - Non-repeatable Read (READ COMMITTED) ===
+--- Sesi A ---
+BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;
+BEGIN
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+   saldo    
+------------
+ 1000000.00
+
+--- Sesi B ---
+BEGIN;
+UPDATE lab9.rekening SET saldo = 1200000 WHERE rekening_id = 1;
+UPDATE 1
+COMMIT;
+COMMIT
+
+--- Sesi A ---
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+   saldo    
+------------
+ 1200000.00
+COMMIT;
+COMMIT
+=> Non-repeatable Read terjadi: Nilai saldo berubah dari 1.000.000 menjadi 1.200.000 dalam transaksi A karena snapshot dibuat per statement.
+
+=== Q7 - REPEATABLE READ ===
+--- Sesi A ---
+BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+   saldo    
+------------
+ 1200000.00
+
+--- Sesi B ---
+BEGIN;
+UPDATE lab9.rekening SET saldo = 1500000 WHERE rekening_id = 1;
+UPDATE 1
+COMMIT;
+COMMIT
+
+--- Sesi A ---
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+   saldo    
+------------
+ 1200000.00
+COMMIT;
+COMMIT
+=> Non-repeatable Read dicegah: Nilai saldo tetap konsisten 1.200.000 karena snapshot dibekukan di awal transaksi.
+
+=== Q8 - Phantom Read ===
+Kondisi hitung: saldo >= 1000000.
+
+1. READ COMMITTED
+--- Sesi A ---
+BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SELECT COUNT(*) FROM lab9.rekening WHERE saldo >= 1000000;
+ count 
+-------
+     2
+
+--- Sesi B ---
+INSERT INTO lab9.rekening VALUES (3, 'Citra', 2000000);
+INSERT 0 1
+COMMIT;
+
+--- Sesi A ---
+SELECT COUNT(*) FROM lab9.rekening WHERE saldo >= 1000000;
+ count 
+-------
+     3
+COMMIT;
+=> Phantom Read terjadi: Jumlah baris bertambah dari 2 menjadi 3 saat dibaca ulang.
+
+2. REPEATABLE READ
+--- Sesi A ---
+BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SELECT COUNT(*) FROM lab9.rekening WHERE saldo >= 1000000;
+ count 
+-------
+     3
+
+--- Sesi B ---
+INSERT INTO lab9.rekening VALUES (4, 'Doni', 2500000);
+INSERT 0 1
+COMMIT;
+
+--- Sesi A ---
+SELECT COUNT(*) FROM lab9.rekening WHERE saldo >= 1000000;
+ count 
+-------
+     3
+COMMIT;
+=> Phantom Read dicegah: Nilai COUNT tetap 3; engine MVCC PostgreSQL mengisolasi transaksi dari penambahan baris baru sesi lain.
+
+=== Q9 - Dirty Read dan READ UNCOMMITTED ===
+--- Sesi A ---
+BEGIN;
+UPDATE lab9.rekening SET saldo = 5000000 WHERE rekening_id = 1;
+UPDATE 1
+(tidak di-COMMIT)
+
+--- Sesi B ---
+BEGIN TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+BEGIN
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+   saldo    
+------------
+ 1500000.00
+COMMIT;
+COMMIT
+
+--- Sesi A ---
+ROLLBACK;
+ROLLBACK
+=> Dirty Read tidak terjadi: Nilai uncommitted (5.000.000) tidak terbaca oleh Sesi B; engine PostgreSQL mengeksekusi READ UNCOMMITTED sama dengan READ COMMITTED.
+
+=== Q10 - Lost Update ===
+Isolation level: READ COMMITTED. Saldo awal rekening 1 di-reset ke 1.000.000.
+
+--- Sesi A ---
+BEGIN;
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+-- Membaca: 1000000.00
+
+--- Sesi B ---
+BEGIN;
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+-- Membaca: 1000000.00
+
+--- Sesi A ---
+-- Aplikasi A menghitung +200000:
+UPDATE lab9.rekening SET saldo = 1200000 WHERE rekening_id = 1;
+UPDATE 1
+COMMIT;
+COMMIT
+
+--- Sesi B ---
+-- Aplikasi B menghitung -100000 (dari basis 1000000):
+UPDATE lab9.rekening SET saldo = 900000 WHERE rekening_id = 1;
+UPDATE 1
+COMMIT;
+COMMIT
+
+--- Verifikasi Hasil Akhir ---
+SELECT * FROM lab9.rekening WHERE rekening_id = 1;
+ rekening_id | pemilik |   saldo   
+-------------+---------+-----------
+           1 | Ani     | 900000.00
+=> Lost Update terjadi: Setoran 200.000 dari Sesi A hilang tertimpa karena Sesi B menulis nilai tetap hasil hitungan bacaan lama.
+
+=== Q11 - Ringkasan Anomali ===
+- Non-repeatable read: Terjadi di READ COMMITTED, dicegah di REPEATABLE READ.
+- Phantom read: Terjadi di READ COMMITTED, dicegah di REPEATABLE READ oleh MVCC PostgreSQL.
+- Dirty read: Tidak pernah terjadi di PostgreSQL (READ UNCOMMITTED diperlakukan sebagai READ COMMITTED).
+- Lost update: Terjadi di READ COMMITTED jika penulisan memakai nilai konstan hasil hitung lokal aplikasi (solusi: pembaruan atomik atau SELECT FOR UPDATE).
+
+=== Pemulihan Data ===
+DELETE FROM lab9.rekening WHERE rekening_id > 2;
+UPDATE lab9.rekening SET saldo = 1000000 WHERE rekening_id IN (1, 2);
 
 HASIL SESI - LATIHAN P09 (Q19-Q23) - Azkha
 

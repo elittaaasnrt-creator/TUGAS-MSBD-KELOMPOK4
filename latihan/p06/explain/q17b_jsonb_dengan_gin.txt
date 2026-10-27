@@ -1,0 +1,57 @@
+﻿=== Run 1 ===
+SET
+                                                               QUERY PLAN                                                                
+-----------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=63559.35..63559.36 rows=1 width=8) (actual time=811.436..811.440 rows=1 loops=1)
+   Buffers: shared hit=32 read=58557 written=881
+   ->  Bitmap Heap Scan on event_log  (cost=711.09..63368.18 rows=76466 width=0) (actual time=82.962..792.932 rows=80000 loops=1)
+         Recheck Cond: (payload @> '{"promo": true}'::jsonb)
+         Heap Blocks: exact=58568
+         Buffers: shared hit=32 read=58557 written=881
+         ->  Bitmap Index Scan on ev_payload_gin  (cost=0.00..691.98 rows=76466 width=0) (actual time=47.487..47.489 rows=80000 loops=1)
+               Index Cond: (payload @> '{"promo": true}'::jsonb)
+               Buffers: shared hit=21
+ Planning:
+   Buffers: shared hit=159
+ Planning Time: 2.099 ms
+ Execution Time: 812.368 ms
+(13 rows)
+
+=== Run 2 ===
+SET
+                                                               QUERY PLAN                                                                
+-----------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=63559.35..63559.36 rows=1 width=8) (actual time=548.948..548.952 rows=1 loops=1)
+   Buffers: shared hit=1 read=58588
+   ->  Bitmap Heap Scan on event_log  (cost=711.09..63368.18 rows=76466 width=0) (actual time=59.926..533.665 rows=80000 loops=1)
+         Recheck Cond: (payload @> '{"promo": true}'::jsonb)
+         Heap Blocks: exact=58568
+         Buffers: shared hit=1 read=58588
+         ->  Bitmap Index Scan on ev_payload_gin  (cost=0.00..691.98 rows=76466 width=0) (actual time=33.686..33.688 rows=80000 loops=1)
+               Index Cond: (payload @> '{"promo": true}'::jsonb)
+               Buffers: shared hit=1 read=20
+ Planning:
+   Buffers: shared hit=129 read=30
+ Planning Time: 1.890 ms
+ Execution Time: 549.849 ms
+(13 rows)
+
+=== Run 3 ===
+SET
+                                                               QUERY PLAN                                                                
+-----------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=63559.35..63559.36 rows=1 width=8) (actual time=583.491..583.495 rows=1 loops=1)
+   Buffers: shared hit=1 read=58588
+   ->  Bitmap Heap Scan on event_log  (cost=711.09..63368.18 rows=76466 width=0) (actual time=63.565..569.059 rows=80000 loops=1)
+         Recheck Cond: (payload @> '{"promo": true}'::jsonb)
+         Heap Blocks: exact=58568
+         Buffers: shared hit=1 read=58588
+         ->  Bitmap Index Scan on ev_payload_gin  (cost=0.00..691.98 rows=76466 width=0) (actual time=38.314..38.315 rows=80000 loops=1)
+               Index Cond: (payload @> '{"promo": true}'::jsonb)
+               Buffers: shared hit=1 read=20
+ Planning:
+   Buffers: shared hit=129 read=30
+ Planning Time: 1.084 ms
+ Execution Time: 583.985 ms
+(13 rows)
+

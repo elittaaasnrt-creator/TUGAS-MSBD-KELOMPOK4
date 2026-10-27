@@ -1,0 +1,48 @@
+﻿=== Run 1 ===
+SET
+                                                       QUERY PLAN                                                       
+------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=83775.75..83775.76 rows=1 width=8) (actual time=1347.677..1347.681 rows=1 loops=1)
+   Buffers: shared hit=2453 read=56115
+   ->  Seq Scan on event_log  (cost=0.00..83568.09 rows=83067 width=0) (actual time=0.093..1333.940 rows=80000 loops=1)
+         Filter: (payload @> '{"promo": true}'::jsonb)
+         Rows Removed by Filter: 1920000
+         Buffers: shared hit=2453 read=56115
+ Planning:
+   Buffers: shared hit=133 read=1
+ Planning Time: 1.065 ms
+ Execution Time: 1348.186 ms
+(10 rows)
+
+=== Run 2 ===
+SET
+                                                       QUERY PLAN                                                       
+------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=83775.75..83775.76 rows=1 width=8) (actual time=1154.624..1154.626 rows=1 loops=1)
+   Buffers: shared hit=2485 read=56083
+   ->  Seq Scan on event_log  (cost=0.00..83568.09 rows=83067 width=0) (actual time=0.088..1142.152 rows=80000 loops=1)
+         Filter: (payload @> '{"promo": true}'::jsonb)
+         Rows Removed by Filter: 1920000
+         Buffers: shared hit=2485 read=56083
+ Planning:
+   Buffers: shared hit=134
+ Planning Time: 0.575 ms
+ Execution Time: 1154.726 ms
+(10 rows)
+
+=== Run 3 ===
+SET
+                                                      QUERY PLAN                                                       
+-----------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=83775.75..83775.76 rows=1 width=8) (actual time=722.686..722.689 rows=1 loops=1)
+   Buffers: shared hit=2517 read=56051
+   ->  Seq Scan on event_log  (cost=0.00..83568.09 rows=83067 width=0) (actual time=0.080..712.382 rows=80000 loops=1)
+         Filter: (payload @> '{"promo": true}'::jsonb)
+         Rows Removed by Filter: 1920000
+         Buffers: shared hit=2517 read=56051
+ Planning:
+   Buffers: shared hit=134
+ Planning Time: 0.766 ms
+ Execution Time: 722.762 ms
+(10 rows)
+

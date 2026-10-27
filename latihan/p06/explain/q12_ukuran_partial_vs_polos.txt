@@ -1,0 +1,17 @@
+﻿           index            | ukuran  |   byte   
+----------------------------+---------+----------
+ lab6.event_log_pkey        | 43 MB   | 44941312
+ lab6.hot_penuh_pkey        | 2208 kB |  2260992
+ lab6.hot_longgar_pkey      | 2208 kB |  2260992
+ lab6.hot_penuh_nilai_idx   | 2208 kB |  2260992
+ lab6.hot_longgar_nilai_idx | 2208 kB |  2260992
+ lab6.ev_gagal_idx          | 896 kB  |   917504
+ lab6.ev_ts_btree           | 43 MB   | 44949504
+ lab6.ev_email_lower_idx    | 86 MB   | 90390528
+(8 rows)
+
+ byte_polos | byte_partial | penghematan_persen 
+------------+--------------+--------------------
+   44949504 |       917504 |              97.96
+(1 row)
+

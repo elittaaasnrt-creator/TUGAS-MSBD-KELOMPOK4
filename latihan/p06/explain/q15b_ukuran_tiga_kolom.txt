@@ -1,0 +1,9 @@
+﻿          index          | ukuran |   byte   
+-------------------------+--------+----------
+ lab6.event_log_pkey     | 43 MB  | 44941312
+ lab6.ev_gagal_idx       | 896 kB |   917504
+ lab6.ev_ts_btree        | 43 MB  | 44949504
+ lab6.ev_email_lower_idx | 86 MB  | 90390528
+ lab6.ev_tiga_idx        | 77 MB  | 81133568
+(5 rows)
+

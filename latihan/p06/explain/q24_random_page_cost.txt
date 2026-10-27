@@ -1,0 +1,45 @@
+﻿=== Run 1 ===
+SET
+                                                      QUERY PLAN                                                       
+-----------------------------------------------------------------------------------------------------------------------
+ Seq Scan on event_log  (cost=0.00..83566.80 rows=1682986 width=194) (actual time=0.018..785.074 rows=1680000 loops=1)
+   Filter: (status = 'SUKSES'::text)
+   Rows Removed by Filter: 320000
+   Buffers: shared hit=14430 read=44138
+ Planning:
+   Buffers: shared hit=232 read=4
+ Planning Time: 1.092 ms
+ Execution Time: 941.931 ms
+(8 rows)
+
+RESET
+=== Run 2 ===
+SET
+                                                      QUERY PLAN                                                       
+-----------------------------------------------------------------------------------------------------------------------
+ Seq Scan on event_log  (cost=0.00..83566.80 rows=1682986 width=194) (actual time=0.163..626.814 rows=1680000 loops=1)
+   Filter: (status = 'SUKSES'::text)
+   Rows Removed by Filter: 320000
+   Buffers: shared hit=14446 read=44122
+ Planning:
+   Buffers: shared hit=236
+ Planning Time: 0.666 ms
+ Execution Time: 771.979 ms
+(8 rows)
+
+RESET
+=== Run 3 ===
+SET
+                                                      QUERY PLAN                                                       
+-----------------------------------------------------------------------------------------------------------------------
+ Seq Scan on event_log  (cost=0.00..83566.80 rows=1682986 width=194) (actual time=0.091..624.200 rows=1680000 loops=1)
+   Filter: (status = 'SUKSES'::text)
+   Rows Removed by Filter: 320000
+   Buffers: shared hit=14478 read=44090
+ Planning:
+   Buffers: shared hit=236
+ Planning Time: 0.685 ms
+ Execution Time: 771.402 ms
+(8 rows)
+
+RESET

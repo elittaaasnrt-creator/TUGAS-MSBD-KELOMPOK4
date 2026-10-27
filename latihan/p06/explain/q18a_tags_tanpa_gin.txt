@@ -1,0 +1,48 @@
+﻿=== Run 1 ===
+SET
+                                                       QUERY PLAN                                                        
+-------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=83983.48..83983.49 rows=1 width=8) (actual time=978.777..978.780 rows=1 loops=1)
+   Buffers: shared hit=16210 read=42365
+   ->  Seq Scan on event_log  (cost=0.00..83567.82 rows=166263 width=0) (actual time=0.268..960.099 rows=166667 loops=1)
+         Filter: (tags @> '{kanal:1,sumber:2}'::text[])
+         Rows Removed by Filter: 1833333
+         Buffers: shared hit=16210 read=42365
+ Planning:
+   Buffers: shared hit=181 read=22 dirtied=1
+ Planning Time: 1.161 ms
+ Execution Time: 979.030 ms
+(10 rows)
+
+=== Run 2 ===
+SET
+                                                       QUERY PLAN                                                        
+-------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=83983.48..83983.49 rows=1 width=8) (actual time=946.336..946.338 rows=1 loops=1)
+   Buffers: shared hit=16216 read=42359
+   ->  Seq Scan on event_log  (cost=0.00..83567.82 rows=166263 width=0) (actual time=0.817..928.925 rows=166667 loops=1)
+         Filter: (tags @> '{kanal:1,sumber:2}'::text[])
+         Rows Removed by Filter: 1833333
+         Buffers: shared hit=16216 read=42359
+ Planning:
+   Buffers: shared hit=203
+ Planning Time: 0.579 ms
+ Execution Time: 946.395 ms
+(10 rows)
+
+=== Run 3 ===
+SET
+                                                       QUERY PLAN                                                        
+-------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=83983.48..83983.49 rows=1 width=8) (actual time=612.926..612.927 rows=1 loops=1)
+   Buffers: shared hit=16222 read=42353
+   ->  Seq Scan on event_log  (cost=0.00..83567.82 rows=166263 width=0) (actual time=0.905..600.320 rows=166667 loops=1)
+         Filter: (tags @> '{kanal:1,sumber:2}'::text[])
+         Rows Removed by Filter: 1833333
+         Buffers: shared hit=16222 read=42353
+ Planning:
+   Buffers: shared hit=203
+ Planning Time: 0.921 ms
+ Execution Time: 613.011 ms
+(10 rows)
+

@@ -1,0 +1,1 @@
+-- Verifikasi tidak merubah data skema

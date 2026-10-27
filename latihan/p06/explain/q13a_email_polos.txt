@@ -1,0 +1,42 @@
+﻿=== Run 1 ===
+SET
+                                                 QUERY PLAN                                                 
+------------------------------------------------------------------------------------------------------------
+ Seq Scan on event_log  (cost=0.00..83568.29 rows=1 width=194) (actual time=21.507..476.019 rows=1 loops=1)
+   Filter: (email = 'user123456@contoh.ac.id'::text)
+   Rows Removed by Filter: 1999999
+   Buffers: shared hit=1460 read=57108
+ Planning:
+   Buffers: shared hit=138 read=3
+ Planning Time: 0.680 ms
+ Execution Time: 476.155 ms
+(8 rows)
+
+=== Run 2 ===
+SET
+                                                 QUERY PLAN                                                 
+------------------------------------------------------------------------------------------------------------
+ Seq Scan on event_log  (cost=0.00..83568.29 rows=1 width=194) (actual time=39.967..374.857 rows=1 loops=1)
+   Filter: (email = 'user123456@contoh.ac.id'::text)
+   Rows Removed by Filter: 1999999
+   Buffers: shared hit=1492 read=57076
+ Planning:
+   Buffers: shared hit=139
+ Planning Time: 2.054 ms
+ Execution Time: 375.075 ms
+(8 rows)
+
+=== Run 3 ===
+SET
+                                                 QUERY PLAN                                                 
+------------------------------------------------------------------------------------------------------------
+ Seq Scan on event_log  (cost=0.00..83568.29 rows=1 width=194) (actual time=17.117..432.230 rows=1 loops=1)
+   Filter: (email = 'user123456@contoh.ac.id'::text)
+   Rows Removed by Filter: 1999999
+   Buffers: shared hit=1524 read=57044
+ Planning:
+   Buffers: shared hit=139
+ Planning Time: 0.490 ms
+ Execution Time: 432.481 ms
+(8 rows)
+

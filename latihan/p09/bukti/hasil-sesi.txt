@@ -1,0 +1,106 @@
+HASIL SESI - LATIHAN P09 (Q1-Q5) - Jelita
+Lingkungan: PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu
+Alat: psql di dalam container Docker (msbd-pg), dua terminal PowerShell
+Konfigurasi: transaction_isolation = read committed, deadlock_timeout = 1s,
+             lock_timeout = 0, statement_timeout = 0,
+             idle_in_transaction_session_timeout = 0
+
+=== Q1 - Kondisi awal ===
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+ rekening_id | pemilik |   saldo
+-------------+---------+------------
+           1 | Ani     | 1000000.00
+           2 | Budi    | 1000000.00
+
+SELECT SUM(saldo) AS total_saldo FROM lab9.rekening;
+ total_saldo
+-------------
+  2000000.00
+
+=== Q2 - Sebelum COMMIT ===
+--- Sesi A ---
+BEGIN;
+UPDATE lab9.rekening SET saldo = saldo - 100000 WHERE rekening_id = 1;
+UPDATE 1
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     |  900000.00
+           2 | Budi    | 1000000.00
+(transaksi belum di-COMMIT)
+
+--- Sesi B ---
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     | 1000000.00
+           2 | Budi    | 1000000.00
+=> Sesi B belum melihat perubahan Sesi A.
+
+=== Q3a - COMMIT ===
+--- Sesi A ---
+COMMIT;
+COMMIT
+
+--- Sesi B ---
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     |  900000.00
+           2 | Budi    | 1000000.00
+=> Setelah COMMIT, perubahan bertahan dan terlihat di Sesi B.
+
+=== Q3b - ROLLBACK (data direset lewat q00_setup.sql) ===
+--- Sesi A ---
+BEGIN;
+UPDATE lab9.rekening SET saldo = saldo - 100000 WHERE rekening_id = 1;
+UPDATE 1
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     |  900000.00
+           2 | Budi    | 1000000.00
+ROLLBACK;
+ROLLBACK
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     | 1000000.00
+           2 | Budi    | 1000000.00
+=> Setelah ROLLBACK, perubahan batal; Ani kembali 1000000.
+
+=== Q4 - SAVEPOINT ===
+--- Sesi A ---
+BEGIN;
+UPDATE lab9.rekening SET saldo = saldo - 100000 WHERE rekening_id = 1;
+UPDATE 1
+SAVEPOINT sp1;
+UPDATE lab9.rekening SET saldo = saldo - 200000 WHERE rekening_id = 2;
+UPDATE 1
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     | 900000.00
+           2 | Budi    | 800000.00
+ROLLBACK TO SAVEPOINT sp1;
+ROLLBACK
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     |  900000.00
+           2 | Budi    | 1000000.00
+COMMIT;
+COMMIT
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     |  900000.00
+           2 | Budi    | 1000000.00
+=> Hanya update setelah savepoint (Budi) yang dibatalkan; update Ani bertahan.
+
+=== Q5 - Atomicity dan consistency (CHECK saldo >= 0) ===
+--- Sesi A ---
+\set VERBOSITY verbose
+BEGIN;
+UPDATE lab9.rekening SET saldo = saldo - 100000 WHERE rekening_id = 1;
+UPDATE 1
+UPDATE lab9.rekening SET saldo = saldo - 99999999 WHERE rekening_id = 2;
+ERROR:  23514: new row for relation "rekening" violates check constraint "rekening_saldo_check"
+DETAIL:  Failing row contains (2, Budi, -98999999.00).
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+ERROR:  25P02: current transaction is aborted, commands ignored until end of transaction block
+ROLLBACK;
+ROLLBACK
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     |  900000.00
+           2 | Budi    | 1000000.00
+=> Update Ani yang valid ikut batal (atomicity); CHECK menolak saldo negatif (consistency).
+
+=== Pemulihan data ===
+Data dikembalikan ke kondisi awal dengan menjalankan ulang q00_setup.sql:
+           1 | Ani     | 1000000.00
+           2 | Budi    | 1000000.00

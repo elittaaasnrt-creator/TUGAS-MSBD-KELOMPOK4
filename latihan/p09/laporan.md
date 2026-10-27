@@ -409,5 +409,5 @@ Saya menggunakan AI assistant sebagai teman diskusi untuk memahami konsep dasar 
 | M. Azkha Amorie            | 251402092 | Q18-Q23, lingkungan, bukti/deadlock.md     |
 | Syifa Nazira               | 251402126 | Q24-Q29, Q31, bukti/serializable.md        |
 
-**Tautan Merge Request:** _(diisi Jelita setelah semua branch digabung)_
+**Tautan Merge Request:** (https://github.com/elittaaasnrt-creator/TUGAS-MSBD-KELOMPOK4/pull/11)
 ```

@@ -58,6 +58,225 @@ ROLLBACK;
 SELECT * FROM lab9.rekening ORDER BY rekening_id;   -- Ani 900000, Budi 1000000
 \set VERBOSITY default
 
+-- =====================================================
+-- Q6-Q11 (Mael)
+-- =====================================================
+
+-- Q6: Non-repeatable Read pada READ COMMITTED
+-- [A]
+BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+-- [B]
+BEGIN;
+UPDATE lab9.rekening SET saldo = 1200000 WHERE rekening_id = 1;
+COMMIT;
+-- [A]
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1; -- Nilai berubah (Non-repeatable read terjadi)
+COMMIT;
+
+-- Q7: Pencegahan pada REPEATABLE READ
+-- [A]
+BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+-- [B]
+BEGIN;
+UPDATE lab9.rekening SET saldo = 1500000 WHERE rekening_id = 1;
+COMMIT;
+-- [A]
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1; -- Nilai tetap konsisten
+COMMIT;
+
+-- Q8: Phantom Read
+-- Skenario READ COMMITTED:
+-- [A]
+BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SELECT COUNT(*) FROM lab9.rekening WHERE saldo >= 1000000;
+-- [B]
+INSERT INTO lab9.rekening VALUES (3, 'Citra', 2000000);
+-- [A]
+SELECT COUNT(*) FROM lab9.rekening WHERE saldo >= 1000000; -- Baris bertambah
+COMMIT;
+
+-- Skenario REPEATABLE READ:
+-- [A]
+BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SELECT COUNT(*) FROM lab9.rekening WHERE saldo >= 1000000;
+-- [B]
+INSERT INTO lab9.rekening VALUES (4, 'Doni', 2500000);
+-- [A]
+SELECT COUNT(*) FROM lab9.rekening WHERE saldo >= 1000000; -- Baris tetap konsisten
+COMMIT;
+
+-- Q9: Dirty Read (PostgreSQL treat READ UNCOMMITTED as READ COMMITTED)
+-- [A]
+BEGIN;
+UPDATE lab9.rekening SET saldo = 5000000 WHERE rekening_id = 1;
+-- [B]
+BEGIN TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1; -- Data uncommitted tidak terbaca
+COMMIT;
+-- [A]
+ROLLBACK;
+
+-- Q10: Lost Update
+UPDATE lab9.rekening SET saldo = 1000000 WHERE rekening_id = 1;
+-- [A]
+BEGIN;
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+-- [B]
+BEGIN;
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+-- [A] Aplikasi menghitung 1000000 + 200000
+UPDATE lab9.rekening SET saldo = 1200000 WHERE rekening_id = 1;
+COMMIT;
+-- [B] Aplikasi menghitung 1000000 - 100000
+UPDATE lab9.rekening SET saldo = 900000 WHERE rekening_id = 1;
+COMMIT;
+-- Verifikasi (Lost update terjadi: update transaksi A hilang)
+SELECT * FROM lab9.rekening WHERE rekening_id = 1;
+
+-- =====================================================
+-- Q18-Q23 (Azkha)
+-- =====================================================
+-- Catatan: Teori matriks konflik (Q18), analisis inspeksi lock (Q22), 
+-- dan tabel parameter timeout (Q23) selengkapnya terdapat pada laporan.md.
+
+-- -----------------------------------------------------
+-- Q19: Penguncian baris yang sama (Row-level Lock Conflict)
+-- -----------------------------------------------------
+-- Sesi [A]: Mulai transaksi dan kunci baris rekening 1
+BEGIN;
+SELECT * FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+
+-- Sesi [B]: Coba kunci baris yang sama (akan terhalang / menggantung)
+BEGIN;
+SELECT * FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+
+-- Sesi [A]: Lepas kuncian
+COMMIT;
+
+-- Sesi [B]: Setelah kuncian terlepas, eksekusi selesai lalu commit
+COMMIT;
+
+
+-- -----------------------------------------------------
+-- Q20: Deadlock Saling Menunggu (SQLSTATE 40P01)
+-- -----------------------------------------------------
+-- Sesi [A]: Kunci rekening 1
+BEGIN;
+SELECT * FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+
+-- Sesi [B]: Kunci rekening 2
+BEGIN;
+SELECT * FROM lab9.rekening WHERE rekening_id = 2 FOR UPDATE;
+
+-- Sesi [A]: Coba kunci rekening 2 (menunggu Sesi B)
+SELECT * FROM lab9.rekening WHERE rekening_id = 2 FOR UPDATE;
+
+-- Sesi [B]: Coba kunci rekening 1 (memicu Deadlock Detection, Sesi B menjadi korban)
+SELECT * FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+
+-- Pembersihan kedua sesi
+-- Sesi [A]:
+ROLLBACK;
+-- Sesi [B]:
+ROLLBACK;
+
+
+-- -----------------------------------------------------
+-- Q21: Pencegahan Deadlock dengan Urutan Penguncian Konsisten
+-- -----------------------------------------------------
+-- Sesi [A]: Kunci rekening 1 lebih dulu
+BEGIN;
+SELECT * FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+
+-- Sesi [B]: Ikut mengantre pada rekening 1 (menunggu Sesi A selesai secara teratur)
+BEGIN;
+SELECT * FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+
+-- Sesi [A]: Lanjut kunci rekening 2 lalu commit
+SELECT * FROM lab9.rekening WHERE rekening_id = 2 FOR UPDATE;
+COMMIT;
+
+-- Sesi [B]: Lanjut kunci rekening 2 setelah giliran tiba, lalu commit tanpa terjadi deadlock
+SELECT * FROM lab9.rekening WHERE rekening_id = 2 FOR UPDATE;
+COMMIT;
+
+
+-- -----------------------------------------------------
+-- Q22: Deadlock vs Antrean Lock Panjang (Inspeksi Monitoring)
+-- -----------------------------------------------------
+-- Sesi [A]: Kunci baris tanpa commit (menahan lock)
+BEGIN;
+SELECT * FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+
+-- Sesi [B]: Mencoba mengakses baris yang sama (menggantung dalam antrean)
+BEGIN;
+SELECT * FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+
+-- Sesi [C] / Sesi Monitoring: Cek aktivitas proses pemblokiran dan kuncian yang belum diberikan
+SELECT 
+    pid, 
+    state, 
+    wait_event_type, 
+    wait_event, 
+    pg_blocking_pids(pid) AS diblokir_oleh, 
+    left(query, 40) AS query
+FROM pg_stat_activity 
+WHERE datname = current_database() 
+  AND pid <> pg_backend_pid();
+
+SELECT 
+    locktype, 
+    mode, 
+    granted, 
+    pid 
+FROM pg_locks 
+WHERE NOT granted;
+
+-- Pembersihan Sesi [A] dan [B]
+-- Sesi [A]:
+ROLLBACK;
+-- Sesi [B]:
+ROLLBACK;
+
+
+-- -----------------------------------------------------
+-- Q23: Pengujian Parameter Timeout
+-- -----------------------------------------------------
+-- 1. Pengecekan nilai konfigurasi default
+SHOW deadlock_timeout;
+SHOW lock_timeout;
+SHOW statement_timeout;
+SHOW idle_in_transaction_session_timeout;
+
+-- 2. Uji statement_timeout (dibatalkan setelah 1 detik)
+BEGIN;
+SET LOCAL statement_timeout = '1s';
+SELECT pg_sleep(3);
+ROLLBACK;
+
+-- 3. Uji lock_timeout
+-- Sesi [A]: Kunci baris rekening 1
+BEGIN;
+SELECT * FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+
+-- Sesi [B]: Pasang batas waktu tunggu lock 2 detik (menghasilkan ERROR saat waktu habis)
+BEGIN;
+SET LOCAL lock_timeout = '2s';
+SELECT * FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+ROLLBACK;
+
+-- Sesi [A]: Bersihkan transaksi
+ROLLBACK;
+
+-- 4. Uji idle_in_transaction_session_timeout
+-- Transaksi terputus (FATAL) jika dibiarkan idle melebihi 5 detik
+BEGIN;
+SET LOCAL idle_in_transaction_session_timeout = '5s';
+-- (Tunggu lebih dari 5 detik sebelum mengeksekusi query berikutnya)
+SELECT 1;
+
 
 -- =====================================================
 -- Q24-Q29, Q31 (Syifa)

@@ -136,6 +136,119 @@ COMMIT;
 SELECT * FROM lab9.rekening WHERE rekening_id = 1;
 
 -- =====================================================
+ 
+-- -----------------------------------------------------
+-- Q12: Pembaruan atomik (mencegah lost update)
+-- -----------------------------------------------------
+-- [A]
+BEGIN;
+UPDATE lab9.rekening SET saldo = saldo - 10000
+WHERE rekening_id = 1 AND saldo >= 10000;           -- UPDATE 1
+-- [B] (tanpa membaca saldo lebih dulu)
+BEGIN;
+UPDATE lab9.rekening SET saldo = saldo - 10000
+WHERE rekening_id = 1 AND saldo >= 10000;           -- menunggu A
+-- [A]
+COMMIT;
+-- [B] UPDATE 1 setelah A COMMIT
+COMMIT;
+SELECT * FROM lab9.rekening ORDER BY rekening_id;   -- Ani 980000 (dua pengurangan tercatat)
+ 
+-- -----------------------------------------------------
+-- Q13: SELECT ... FOR UPDATE (pessimistic lock)
+-- -----------------------------------------------------
+-- [A]
+BEGIN;
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;   -- 1000000
+-- [B]
+BEGIN;
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;   -- MENUNGGU A
+-- [A]
+UPDATE lab9.rekening SET saldo = 990000 WHERE rekening_id = 1;
+COMMIT;
+-- [B] langsung menampilkan 990000 (nilai terbaru), lalu:
+UPDATE lab9.rekening SET saldo = 980000 WHERE rekening_id = 1;
+COMMIT;
+SELECT * FROM lab9.rekening ORDER BY rekening_id;   -- Ani 980000
+ 
+-- -----------------------------------------------------
+-- Q14: Optimistic locking dengan version_no
+-- -----------------------------------------------------
+-- Persiapan (reset tabel + kolom versi)
+DROP TABLE IF EXISTS lab9.rekening;
+CREATE TABLE lab9.rekening (
+    rekening_id INT PRIMARY KEY,
+    pemilik TEXT NOT NULL,
+    saldo NUMERIC(12,2) NOT NULL CHECK (saldo >= 0)
+);
+INSERT INTO lab9.rekening VALUES (1, 'Ani', 1000000), (2, 'Budi', 1000000);
+ALTER TABLE lab9.rekening ADD COLUMN version_no INT NOT NULL DEFAULT 1;
+-- [A] dan [B] sama-sama membaca
+SELECT saldo, version_no FROM lab9.rekening WHERE rekening_id = 1;  -- 1000000 | 1
+-- [A]
+UPDATE lab9.rekening SET saldo = 990000, version_no = version_no + 1
+WHERE rekening_id = 1 AND version_no = 1;           -- UPDATE 1
+-- [B] masih memegang versi 1 yang basi
+UPDATE lab9.rekening SET saldo = 990000, version_no = version_no + 1
+WHERE rekening_id = 1 AND version_no = 1;           -- UPDATE 0 (konflik terdeteksi)
+-- [B] baca ulang lalu ulangi dengan versi terbaru
+SELECT saldo, version_no FROM lab9.rekening WHERE rekening_id = 1;  -- 990000 | 2
+UPDATE lab9.rekening SET saldo = 980000, version_no = version_no + 1
+WHERE rekening_id = 1 AND version_no = 2;           -- UPDATE 1
+SELECT * FROM lab9.rekening ORDER BY rekening_id;   -- Ani 980000 | 3
+ 
+-- -----------------------------------------------------
+-- Q15: MVCC - pembaca melihat snapshot tanpa menunggu penulis
+-- -----------------------------------------------------
+-- [A]
+BEGIN ISOLATION LEVEL REPEATABLE READ;
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;   -- 980000
+-- [B] (belum COMMIT)
+BEGIN;
+UPDATE lab9.rekening SET saldo = saldo - 5000 WHERE rekening_id = 1;
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;   -- 975000 (hanya terlihat di B)
+-- [A] langsung muncul, tidak menunggu B
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;   -- 980000
+-- [B]
+COMMIT;
+-- [A]
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;   -- masih 980000 (snapshot)
+COMMIT;
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;   -- 975000
+ 
+-- -----------------------------------------------------
+-- Q16: xmin dan xmax
+-- -----------------------------------------------------
+-- [A]
+SELECT rekening_id, saldo, xmin, xmax, ctid FROM lab9.rekening WHERE rekening_id = 1;
+BEGIN;
+SELECT rekening_id, saldo, xmin, xmax FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+-- [B] baca biasa, tidak menunggu
+SELECT rekening_id, saldo, xmin, xmax FROM lab9.rekening WHERE rekening_id = 1;
+-- [A]
+ROLLBACK;
+SELECT rekening_id, saldo, xmin, xmax FROM lab9.rekening WHERE rekening_id = 1;
+-- Hasil tercatat: 975000 | xmin 1116 | xmax 1118 (baris tidak dihapus)
+ 
+-- -----------------------------------------------------
+-- Q17: Dead tuple dan vacuum
+-- -----------------------------------------------------
+SELECT n_live_tup, n_dead_tup FROM pg_stat_user_tables
+WHERE schemaname = 'lab9' AND relname = 'rekening';   -- 2 | 6
+-- Opsional (bukan VACUUM FULL):
+-- VACUUM (VERBOSE) lab9.rekening;
+ 
+-- -----------------------------------------------------
+-- Q32: jawaban ada di laporan.md (berdasarkan bukti Q10, Q12-Q14, Q20-Q21, Q26-Q27)
+-- -----------------------------------------------------
+ 
+-- -----------------------------------------------------
+-- Pemulihan data ke kondisi awal (tabel tanpa version_no)
+-- Jalankan ulang q00_setup.sql (dari PowerShell):
+--   Get-Content latihan\p09\q00_setup.sql | docker exec -i msbd-pg psql -U msbd -d pagila
+-- -----------------------------------------------------
+ 
+-- =====================================================
 -- Q18-Q23 (Azkha)
 -- =====================================================
 -- Catatan: Teori matriks konflik (Q18), analisis inspeksi lock (Q22), 

@@ -333,3 +333,131 @@ ERROR:  canceling statement due to lock timeout
 BEGIN; SET LOCAL idle_in_transaction_session_timeout = '5s'; (diam ±8 detik)
 SELECT 1;
 FATAL:  terminating connection due to idle-in-transaction timeout
+
+HASIL SESI - LATIHAN P09 (Q12-Q17) - Agi
+Lingkungan: PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2), psql di container Docker (msbd-pg),
+            dua terminal PowerShell (Sesi A dan Sesi B), database pagila, skema lab9.
+Catatan: baris bertanda [TIDAK TERCETAK] adalah langkah yang dijalankan sesuai urutan
+         eksperimen, tetapi keluarannya sudah tidak ada di scroll terminal.
+
+=== Q12 - Pembaruan atomik ===
+Skenario: kedua sesi mengurangi saldo Ani Rp10.000 dengan SET saldo = saldo - 10000.
+--- Sesi A --- [TIDAK TERCETAK] (UPDATE saldo = saldo - 10000, lalu COMMIT; Ani menjadi 990000)
+--- Sesi B ---
+BEGIN;
+UPDATE lab9.rekening SET saldo = saldo - 10000 WHERE rekening_id = 1 AND saldo >= 10000;
+BEGIN
+UPDATE 1
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+ rekening_id | pemilik |   saldo
+-------------+---------+------------
+           1 | Ani     |  980000.00
+           2 | Budi    | 1000000.00
+COMMIT;
+COMMIT
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     |  980000.00
+           2 | Budi    | 1000000.00
+=> Dua pengurangan 10000 sama-sama tercatat: 1000000 -> 990000 -> 980000. Tidak ada yang hilang.
+
+=== Q13 - SELECT ... FOR UPDATE ===
+--- Sesi A --- [TIDAK TERCETAK]
+BEGIN; SELECT saldo ... WHERE rekening_id = 1 FOR UPDATE;
+UPDATE ... SET saldo = 990000 WHERE rekening_id = 1; COMMIT;
+--- Sesi B ---
+(BEGIN; SELECT yang sama, menunggu sampai A COMMIT; lama menunggu tidak tercetak)
+BEGIN;
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+   saldo
+-----------
+ 990000.00
+UPDATE lab9.rekening SET saldo = 980000 WHERE rekening_id = 1;
+UPDATE 1
+COMMIT;
+COMMIT
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     |  980000.00
+           2 | Budi    | 1000000.00
+=> Setelah A COMMIT, B langsung membaca 990000.00 (nilai terbaru), bukan 1000000.00.
+
+=== Q14 - Optimistic locking (version_no) ===
+Persiapan (tabel dibuat ulang lalu ditambah kolom versi):
+ALTER TABLE lab9.rekening ADD COLUMN version_no INT NOT NULL DEFAULT 1;
+--- Sesi A ---
+SELECT saldo, version_no FROM lab9.rekening WHERE rekening_id = 1;
+   saldo    | version_no
+------------+------------
+ 1000000.00 |          1
+UPDATE lab9.rekening SET saldo = 990000, version_no = version_no + 1
+WHERE rekening_id = 1 AND version_no = 1;
+UPDATE 1
+--- Sesi B --- (pembacaan awal 1000000.00 | 1 [TIDAK TERCETAK])
+UPDATE lab9.rekening SET saldo = 990000, version_no = version_no + 1
+WHERE rekening_id = 1 AND version_no = 1;
+UPDATE 0
+=> UPDATE 0: tidak ada baris cocok karena versi sudah 2. Aplikasi tahu datanya diubah sesi lain.
+SELECT saldo, version_no FROM lab9.rekening WHERE rekening_id = 1;
+   saldo   | version_no
+-----------+------------
+ 990000.00 |          2
+UPDATE lab9.rekening SET saldo = 980000, version_no = version_no + 1
+WHERE rekening_id = 1 AND version_no = 2;
+UPDATE 1
+SELECT * FROM lab9.rekening ORDER BY rekening_id;
+           1 | Ani     |  980000.00 |          3
+           2 | Budi    | 1000000.00 |          1
+
+=== Q15 - MVCC dan snapshot ===
+--- Sesi A --- (BEGIN ISOLATION LEVEL REPEATABLE READ; pembacaan pertama 980000.00 dan
+                pembacaan saat B belum COMMIT [TIDAK TERCETAK])
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;   -- setelah B COMMIT
+   saldo
+-----------
+ 980000.00
+COMMIT;
+COMMIT
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+   saldo
+-----------
+ 975000.00
+--- Sesi B ---
+BEGIN;
+UPDATE lab9.rekening SET saldo = saldo - 5000 WHERE rekening_id = 1;
+BEGIN
+UPDATE 1
+SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;
+   saldo
+-----------
+ 975000.00
+COMMIT;
+COMMIT
+=> B sudah COMMIT 975000, tetapi snapshot A tetap 980000 sampai A COMMIT.
+
+=== Q16 - xmin dan xmax ===
+--- Sesi A --- (pembacaan awal dan SELECT ... FOR UPDATE [TIDAK TERCETAK])
+ROLLBACK;
+ROLLBACK
+SELECT rekening_id, saldo, xmin, xmax FROM lab9.rekening WHERE rekening_id = 1;
+ rekening_id |   saldo   | xmin | xmax
+-------------+-----------+------+------
+           1 | 975000.00 | 1116 | 1118
+--- Sesi B ---
+SELECT rekening_id, saldo, xmin, xmax FROM lab9.rekening WHERE rekening_id = 1;
+ rekening_id |   saldo   | xmin | xmax
+-------------+-----------+------+------
+           1 | 975000.00 | 1116 | 1118
+=> xmax = 1118 terisi padahal baris tidak dihapus dan saldo tetap 975000.00.
+
+=== Q17 - Dead tuple ===
+SELECT n_live_tup, n_dead_tup FROM pg_stat_user_tables
+WHERE schemaname = 'lab9' AND relname = 'rekening';
+ n_live_tup | n_dead_tup
+------------+------------
+          2 |          6
+=> Statistik bersifat perkiraan. Tabel hanya punya 2 baris hidup, tetapi sekitar 6 versi lama
+   menunggu dibersihkan vacuum.
+[OPSIONAL - tempel di sini jika dijalankan: hasil VACUUM (VERBOSE) lab9.rekening;]
+
+=== Pemulihan data (Agi) ===
+Tabel dibuat ulang tanpa kolom version_no dengan menjalankan ulang q00_setup.sql:
+[TEMPEL OUTPUT SELECT dari q00_setup.sql: Ani 1000000.00, Budi 1000000.00]

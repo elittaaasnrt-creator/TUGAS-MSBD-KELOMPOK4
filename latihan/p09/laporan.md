@@ -99,7 +99,7 @@ Penjelasan:
   2. Sesi B: `BEGIN; UPDATE lab9.rekening SET saldo = 1200000 WHERE rekening_id = 1; COMMIT;`
   3. Sesi A: `SELECT saldo FROM lab9.rekening WHERE rekening_id = 1;` lalu `COMMIT;`
 - **Hasil**: Pembacaan pertama di Sesi A bernilai **1.000.000,00**, sedangkan pembacaan kedua bernilai **1.200.000,00**.
-- **Penjelasan**: Pada level `READ COMMITTED`, setiap statement query membaca snapshot data paling baru yang sudah ter-commit. Ketika Sesi B melakukan commit di sela transaksi Sesi A, Sesi A membaca baris yang sudah diubah tersebut sehingga terjadi anomali *Non-repeatable Read*.
+- **Penjelasan**: Pada level `READ COMMITTED`, setiap statement query membaca snapshot data paling baru yang sudah ter-commit. Ketika Sesi B melakukan commit di sela transaksi Sesi A, Sesi A membaca baris yang sudah diubah tersebut sehingga terjadi anomali _Non-repeatable Read_.
 
 #### Q7. Perbandingan dengan REPEATABLE READ
 
@@ -113,10 +113,10 @@ Penjelasan:
 #### Q8. Phantom read
 
 - **Urutan**:
-  - *READ COMMITTED*: Sesi A menjalankan `SELECT COUNT(*)`, Sesi B menjalankan `INSERT`, Sesi A mengulang `SELECT COUNT(*)`.
-  - *REPEATABLE READ*: Sesi A menjalankan `SELECT COUNT(*)`, Sesi B menjalankan `INSERT`, Sesi A mengulang `SELECT COUNT(*)`.
+  - _READ COMMITTED_: Sesi A menjalankan `SELECT COUNT(*)`, Sesi B menjalankan `INSERT`, Sesi A mengulang `SELECT COUNT(*)`.
+  - _REPEATABLE READ_: Sesi A menjalankan `SELECT COUNT(*)`, Sesi B menjalankan `INSERT`, Sesi A mengulang `SELECT COUNT(*)`.
 - **Hasil (READ COMMITTED vs REPEATABLE READ)**:
-  - Pada `READ COMMITTED`, jumlah baris bertambah dari **2** menjadi **3** (*Phantom Read* terjadi).
+  - Pada `READ COMMITTED`, jumlah baris bertambah dari **2** menjadi **3** (_Phantom Read_ terjadi).
   - Pada `REPEATABLE READ`, jumlah baris tetap konsisten di angka **3** (baris baru Doni tidak masuk ke snapshot).
 - **Penjelasan**: Standar ANSI SQL menyatakan `REPEATABLE READ` memperbolehkan Phantom Read, namun implementasi MVCC PostgreSQL mencegahnya karena transaksi membaca snapshot tetap dari awal transaksi.
 
@@ -127,7 +127,7 @@ Penjelasan:
   2. Sesi B: `BEGIN TRANSACTION ISOLATION LEVEL READ UNCOMMITTED; SELECT saldo FROM lab9.rekening WHERE rekening_id = 1; COMMIT;`
   3. Sesi A: `ROLLBACK;`
 - **Hasil**: Sesi B membaca saldo **1.500.000,00** (data lama sebelum diubah Sesi A). Nilai 9.999.999 tidak pernah terlihat.
-- **Penjelasan**: PostgreSQL tidak mendukung *Dirty Read*. Tingkat isolasi `READ UNCOMMITTED` secara internal diperlakukan sama persis dengan `READ COMMITTED` oleh engine MVCC.
+- **Penjelasan**: PostgreSQL tidak mendukung _Dirty Read_. Tingkat isolasi `READ UNCOMMITTED` secara internal diperlakukan sama persis dengan `READ COMMITTED` oleh engine MVCC.
 
 #### Q10. Lost update
 
@@ -136,16 +136,16 @@ Penjelasan:
   2. Sesi A menghitung penambahan (+200.000) dan mengeksekusi `UPDATE ... SET saldo = 1200000; COMMIT;`
   3. Sesi B menghitung pengurangan (-100.000) dan mengeksekusi `UPDATE ... SET saldo = 900000; COMMIT;`
 - **Hasil**: Saldo akhir bernilai **900.000,00**. Penambahan 200.000 dari Sesi A hilang tertimpa.
-- **Penjelasan**: Menulis nilai absolut hasil kalkulasi lokal di aplikasi menyebabkan *Lost Update* karena transaksi kedua tidak memperhitungkan pembaruan yang baru saja di-commit oleh transaksi pertama.
+- **Penjelasan**: Menulis nilai absolut hasil kalkulasi lokal di aplikasi menyebabkan _Lost Update_ karena transaksi kedua tidak memperhitungkan pembaruan yang baru saja di-commit oleh transaksi pertama.
 
 #### Q11. Tabel ringkas anomali
 
-| Anomali | Urutan kejadian | Isolation level | Hasil yang diamati | Cara mencegah/menangani |
-| --- | --- | --- | --- | --- |
-| **Dirty Read** | Transaksi A mengubah baris tanpa commit, Transaksi B membaca baris tersebut. | READ UNCOMMITTED | Tidak terbaca (tetap membaca data lama). | Bawaan MVCC PostgreSQL (selalu dipetakan ke READ COMMITTED). |
-| **Non-repeatable Read** | Transaksi A membaca, Transaksi B update + commit, Transaksi A membaca ulang baris yang sama. | READ COMMITTED | Nilai kolom berubah di tengah transaksi (1.000.000 -> 1.200.000). | Gunakan `REPEATABLE READ`, `SERIALIZABLE`, atau `FOR SHARE`. |
-| **Phantom Read** | Transaksi A menghitung baris rentang, Transaksi B insert + commit, Transaksi A membaca ulang rentang. | READ COMMITTED | Jumlah baris bertambah dari 2 menjadi 3. | Gunakan `REPEATABLE READ` atau `SERIALIZABLE`. |
-| **Lost Update** | Dua transaksi membaca nilai yang sama, menghitung lokal, lalu menulis nilai statis berurutan. | READ COMMITTED | Pembaruan transaksi pertama tertimpa dan hilang (saldo akhir 900.000). | Gunakan pembaruan atomik (`SET saldo = saldo + n`), `FOR UPDATE`, atau versi optimistik. |
+| Anomali                 | Urutan kejadian                                                                                       | Isolation level  | Hasil yang diamati                                                     | Cara mencegah/menangani                                                                  |
+| ----------------------- | ----------------------------------------------------------------------------------------------------- | ---------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| **Dirty Read**          | Transaksi A mengubah baris tanpa commit, Transaksi B membaca baris tersebut.                          | READ UNCOMMITTED | Tidak terbaca (tetap membaca data lama).                               | Bawaan MVCC PostgreSQL (selalu dipetakan ke READ COMMITTED).                             |
+| **Non-repeatable Read** | Transaksi A membaca, Transaksi B update + commit, Transaksi A membaca ulang baris yang sama.          | READ COMMITTED   | Nilai kolom berubah di tengah transaksi (1.000.000 -> 1.200.000).      | Gunakan `REPEATABLE READ`, `SERIALIZABLE`, atau `FOR SHARE`.                             |
+| **Phantom Read**        | Transaksi A menghitung baris rentang, Transaksi B insert + commit, Transaksi A membaca ulang rentang. | READ COMMITTED   | Jumlah baris bertambah dari 2 menjadi 3.                               | Gunakan `REPEATABLE READ` atau `SERIALIZABLE`.                                           |
+| **Lost Update**         | Dua transaksi membaca nilai yang sama, menghitung lokal, lalu menulis nilai statis berurutan.         | READ COMMITTED   | Pembaruan transaksi pertama tertimpa dan hilang (saldo akhir 900.000). | Gunakan pembaruan atomik (`SET saldo = saldo + n`), `FOR UPDATE`, atau versi optimistik. |
 
 ---
 
@@ -154,36 +154,55 @@ Penjelasan:
 #### Q12. Pembaruan atomik
 
 - Urutan:
-- Hasil:
-- Penjelasan (mengapa menghitung di database lebih aman):
+  Sesi A: BEGIN; UPDATE lab9.rekening SET saldo = saldo - 10000 WHERE rekening_id = 1 AND saldo >= 10000; COMMIT;
+  Sesi B: perintah UPDATE yang sama (tanpa membaca saldo lebih dulu), lalu COMMIT;
+- Hasil: Ani turun dari 1.000.000 ke 990.000 (setelah Sesi A) lalu 980.000,00 (setelah Sesi B, UPDATE 1, COMMIT). Kedua pengurangan tercatat. Tidak ada error.
+- Penjelasan: saldo = saldo - 10000 dihitung oleh database terhadap nilai terbaru yang sudah di-commit, sehingga tidak bergantung pada nilai bacaan lama di aplikasi. Pada READ COMMITTED, UPDATE yang menemui baris yang sedang diubah transaksi lain menunggu transaksi itu selesai, lalu mengevaluasi ulang syarat WHERE pada versi terbaru. Berbeda dengan Q10 yang menulis nilai tetap hasil hitung lama (hasil akhir 900.000, setoran 200.000 hilang). Syarat AND saldo >= 10000 juga mencegah saldo negatif; jika saldo tidak cukup hasilnya UPDATE 0.
 
 #### Q13. SELECT ... FOR UPDATE
 
-- Urutan (kapan sesi kedua menunggu):
-- Hasil:
-- Penjelasan:
+- Urutan:
+  Sesi A: BEGIN; SELECT saldo FROM lab9.rekening WHERE rekening_id = 1 FOR UPDATE;
+  Sesi B: BEGIN; lalu SELECT yang sama. Sesi B menunggu selama A belum selesai.
+  Sesi A: UPDATE ... SET saldo = 990000 WHERE rekening_id = 1; COMMIT;
+  Sesi B: setelah A COMMIT, SELECT ... FOR UPDATE langsung menampilkan hasil, lalu UPDATE ... SET saldo = 980000; COMMIT;
+- Hasil: Sesi B menampilkan saldo 990.000,00 (nilai yang di-commit A), bukan 1.000.000. Hasil akhir Ani 980.000,00. Lama menunggu B tidak tercetak di terminal.
+- Penjelasan:FOR UPDATE mengunci baris sehingga sesi kedua antre, lalu membaca versi terbaru setelah kunci dilepas. Tidak ada lost update seperti Q10. Kompromi: sesi yang menunggu tertahan, dan jika kunci ditahan terlalu lama muncul antrean panjang (lihat Q22).
 
 #### Q14. Optimistic locking (`version_no`)
 
 - Urutan:
-- Hasil:
-- Penjelasan:
+  Tabel dibuat ulang dengan kolom version_no INT NOT NULL DEFAULT 1; Ani 1000000.00 | 1.
+  Sesi A dan B sama-sama membaca baris Ani (versi 1).
+  Sesi A: UPDATE ... SET saldo = 990000, version_no = version_no + 1 WHERE rekening_id = 1 AND version_no = 1; menghasilkan UPDATE 1.
+  Sesi B (masih memegang versi 1): perintah yang sama menghasilkan UPDATE 0.
+  Sesi B membaca ulang (990000.00 | 2), lalu update dengan version_no = 2 menghasilkan UPDATE 1.
+- Hasil: akhir Ani 980.000,00 | versi 3. Pembacaan awal Sesi B tidak tercetak di terminal.
+- Penjelasan: UPDATE 0 adalah sinyal bagi aplikasi bahwa baris sudah diubah sesi lain sejak dibaca. Aplikasi lalu membaca ulang dan mengulang. Konflik terdeteksi, bukan dicegah; cocok untuk beban dengan konflik jarang dan tanpa menahan lock.
 
 #### Q15. MVCC dan snapshot
 
 - Urutan:
-- Hasil:
-- Penjelasan:
+  Sesi A: BEGIN ISOLATION LEVEL REPEATABLE READ; lalu SELECT saldo ... menampilkan 980.000.
+  Sesi B: BEGIN; UPDATE ... SET saldo = saldo - 5000 ...; SELECT di B menampilkan 975.000 (belum COMMIT).
+  Sesi A: SELECT yang sama tetap 980.000 dan langsung muncul.
+  Sesi B: COMMIT;
+  Sesi A: SELECT masih 980.000,00; setelah COMMIT A, SELECT menjadi 975.000,00.
+- Hasil: hasil langkah 5 tercatat di terminal; langkah 1-3 tidak tercetak (dijalankan sesuai urutan).
+- Penjelasan: UPDATE tidak menimpa baris, melainkan membuat versi baru. Tiap transaksi membaca versi yang terlihat menurut snapshot-nya, sehingga pembaca tidak menunggu penulis dan penulis tidak menunggu pembaca. Snapshot A tetap sampai A selesai.
 
 #### Q16. xmin dan xmax
 
-- Hasil query:
-- Penjelasan:
+- Hasil query: Hasil query (setelah ROLLBACK di Sesi A; Sesi B membaca hasil identik):
+  rekening_id saldo xmin xmax
+  1 975000.00 1116 1118
+  Pembacaan awal (xmax = 0) dan hasil SELECT ... FOR UPDATE tidak tercetak di terminal.
+- Penjelasan: xmin dan xmax adalah kolom sistem (metadata transaksi) pada setiap versi baris, bukan kolom bisnis. xmin adalah ID transaksi yang membuat versi baris (kemungkinan UPDATE Sesi B di Q15). xmax adalah ID transaksi yang menghapus, meng-update, atau mengunci versi tersebut. xmax = 1118 kemungkinan berasal dari SELECT ... FOR UPDATE Sesi A yang dibatalkan, sebab baris tidak dihapus dan saldo tetap 975.000 (hubungan ke transaksi A adalah kesimpulan, bukan hasil yang tercetak). Karena itu satu nilai xmin/xmax saja tidak cukup: PostgreSQL juga memeriksa status transaksi itu (commit atau abort) dan penanda lock internal untuk menentukan visibilitas.
 
 #### Q17. Manfaat MVCC dan peran vacuum
 
-- Hasil (`n_dead_tup`, VACUUM):
-- Penjelasan:
+- Hasil (pg_stat_user_tables): n_live_tup = 2, n_dead_tup = 6. Angka ini perkiraan statistik, bukan jumlah pasti.
+- Penjelasan: manfaat MVCC adalah konkurensi tinggi, karena pembaca dan penulis tidak saling blokir (Q15). Harganya, setiap UPDATE/DELETE meninggalkan versi lama (dead tuple). Hasil di atas menunjukkan 2 baris hidup tetapi sekitar 6 versi lama yang menumpuk. Vacuum (otomatis lewat autovacuum atau manual) menandai ruang itu agar dapat dipakai ulang, memperbarui visibility map, dan mencegah bloat serta masalah transaction ID wraparound.
 
 ---
 
@@ -191,12 +210,12 @@ Penjelasan:
 
 #### Q18. FOR UPDATE / NO KEY UPDATE / SHARE / KEY SHARE
 
-| Mode              | Tujuan umum | Kapan transaksi lain terhalang |
-| ----------------- | ----------- | ------------------------------ |
-| FOR UPDATE        | Kunci terkuat: mengunci baris untuk UPDATE/DELETE atau perubahan kolom kunci. | Menghalangi semua mode lain (FOR UPDATE, NO KEY UPDATE, SHARE, KEY SHARE). |
-| FOR NO KEY UPDATE | Mengunci baris untuk UPDATE yang tidak mengubah kolom kunci (mode yang diambil UPDATE biasa). | Menghalangi FOR UPDATE, NO KEY UPDATE, dan SHARE; tidak menghalangi KEY SHARE. |
-| FOR SHARE         | Kunci bersama: baris tidak boleh diubah atau dihapus selama dipegang, tetapi banyak sesi boleh memegang bersamaan. | Menghalangi FOR UPDATE dan NO KEY UPDATE; sesama SHARE dan KEY SHARE lolos. |
-| FOR KEY SHARE     | Kunci terlemah: menjaga kolom kunci tidak berubah dan baris tidak dihapus (dipakai pengecekan foreign key). | Hanya menghalangi FOR UPDATE. |
+| Mode              | Tujuan umum                                                                                                        | Kapan transaksi lain terhalang                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| FOR UPDATE        | Kunci terkuat: mengunci baris untuk UPDATE/DELETE atau perubahan kolom kunci.                                      | Menghalangi semua mode lain (FOR UPDATE, NO KEY UPDATE, SHARE, KEY SHARE).     |
+| FOR NO KEY UPDATE | Mengunci baris untuk UPDATE yang tidak mengubah kolom kunci (mode yang diambil UPDATE biasa).                      | Menghalangi FOR UPDATE, NO KEY UPDATE, dan SHARE; tidak menghalangi KEY SHARE. |
+| FOR SHARE         | Kunci bersama: baris tidak boleh diubah atau dihapus selama dipegang, tetapi banyak sesi boleh memegang bersamaan. | Menghalangi FOR UPDATE dan NO KEY UPDATE; sesama SHARE dan KEY SHARE lolos.    |
+| FOR KEY SHARE     | Kunci terlemah: menjaga kolom kunci tidak berubah dan baris tidak dihapus (dipakai pengecekan foreign key).        | Hanya menghalangi FOR UPDATE.                                                  |
 
 #### Q19. Penguncian baris yang sama
 
@@ -224,13 +243,12 @@ Penjelasan:
 
 #### Q23. Perbandingan timeout
 
-| Parameter                           | Fungsi | Hasil uji |
-| ----------------------------------- | ------ | --------- |
-| lock_timeout                        | Batas waktu menunggu lock; lewat batas, statement dibatalkan. | `SET LOCAL lock_timeout = '2s'`, B mengunci baris yang dipegang A: `ERROR: canceling statement due to lock timeout`. |
-| statement_timeout                   | Batas waktu eksekusi satu statement. | `SET LOCAL statement_timeout = '1s'; SELECT pg_sleep(3);`: `ERROR: canceling statement due to statement timeout`. |
-| idle_in_transaction_session_timeout | Memutus sesi yang diam di dalam transaksi terlalu lama. | Diset 5s lalu didiamkan ±8s: `FATAL: terminating connection due to idle-in-transaction timeout`. |
-| deadlock_timeout                    | Lama menunggu lock sebelum PostgreSQL memeriksa deadlock (bukan batas total menunggu). | Nilai 1s; deadlock Q20 terdeteksi setelah ±1s. |
-
+| Parameter                           | Fungsi                                                                                 | Hasil uji                                                                                                            |
+| ----------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| lock_timeout                        | Batas waktu menunggu lock; lewat batas, statement dibatalkan.                          | `SET LOCAL lock_timeout = '2s'`, B mengunci baris yang dipegang A: `ERROR: canceling statement due to lock timeout`. |
+| statement_timeout                   | Batas waktu eksekusi satu statement.                                                   | `SET LOCAL statement_timeout = '1s'; SELECT pg_sleep(3);`: `ERROR: canceling statement due to statement timeout`.    |
+| idle_in_transaction_session_timeout | Memutus sesi yang diam di dalam transaksi terlalu lama.                                | Diset 5s lalu didiamkan ±8s: `FATAL: terminating connection due to idle-in-transaction timeout`.                     |
+| deadlock_timeout                    | Lama menunggu lock sebelum PostgreSQL memeriksa deadlock (bukan batas total menunggu). | Nilai 1s; deadlock Q20 terdeteksi setelah ±1s.                                                                       |
 
 ---
 
@@ -243,7 +261,7 @@ Penjelasan:
   2. **Sesi B**: `BEGIN; SELECT * FROM lab9.antrean_tugas WHERE status = 'PENDING' FOR UPDATE SKIP LOCKED LIMIT 1; COMMIT;`
   3. **Sesi A**: `COMMIT;`
 - **Hasil**: Sesi B langsung mengembalikan baris **ID 2 (Tugas 2)** tanpa menunggu Sesi A.
-- **Penjelasan**: Klausa `SKIP LOCKED` memerintahkan PostgreSQL untuk mengabaikan baris data yang sedang dikunci oleh transaksi lain dan langsung mengambil baris bebas berikutnya. Fitur ini sangat berguna pada arsitektur pemrosesan antrean (*worker queue*), di mana banyak proses *worker* dapat mengambil dan mengerjakan tugas secara paralel dari tabel yang sama tanpa saling menghambat (*blocking*).
+- **Penjelasan**: Klausa `SKIP LOCKED` memerintahkan PostgreSQL untuk mengabaikan baris data yang sedang dikunci oleh transaksi lain dan langsung mengambil baris bebas berikutnya. Fitur ini sangat berguna pada arsitektur pemrosesan antrean (_worker queue_), di mana banyak proses _worker_ dapat mengambil dan mengerjakan tugas secara paralel dari tabel yang sama tanpa saling menghambat (_blocking_).
 
 #### Q25. NOWAIT
 
@@ -252,7 +270,7 @@ Penjelasan:
   2. **Sesi B**: `BEGIN; SELECT * FROM lab9.antrean_tugas WHERE id = 1 FOR UPDATE NOWAIT;`
   3. **Sesi A**: `COMMIT;`
 - **Hasil**: Sesi B langsung gagal seketika dan mengembalikan error **`SQLSTATE 55P03`** (`lock_not_available`).
-- **Penjelasan**: Klausa `NOWAIT` memaksakan kueri untuk membatalkan eksekusi secara instan jika baris yang diminta sedang dikunci oleh transaksi lain. Berbeda dengan perilaku standar yang akan menunggu (*wait*) hingga kuncian dilepas, `NOWAIT` mencegah aplikasi mengalami penundaan eksekusi yang lama (*hang*) pada sistem berkonkurensi tinggi.
+- **Penjelasan**: Klausa `NOWAIT` memaksakan kueri untuk membatalkan eksekusi secara instan jika baris yang diminta sedang dikunci oleh transaksi lain. Berbeda dengan perilaku standar yang akan menunggu (_wait_) hingga kuncian dilepas, `NOWAIT` mencegah aplikasi mengalami penundaan eksekusi yang lama (_hang_) pada sistem berkonkurensi tinggi.
 
 #### Q26. Write skew (REPEATABLE READ)
 
@@ -262,7 +280,7 @@ Penjelasan:
   3. **Sesi A**: `UPDATE lab9.dokter_jaga SET aktif = false WHERE nama = 'Dr. Alice'; COMMIT;`
   4. **Sesi B**: `UPDATE lab9.dokter_jaga SET aktif = false WHERE nama = 'Dr. Bob'; COMMIT;`
 - **Hasil**: Kedua transaksi berhasil `COMMIT`, tetapi tabel `lab9.dokter_jaga` menghasilkan **0 dokter aktif** (Dr. Alice & Dr. Bob sama-sama `false`).
-- **Penjelasan**: *Write Skew* adalah anomali konkurensi di mana dua transaksi membaca sekumpulan data yang sama (*overlapping read set*), lalu membuat keputusan bisnis yang saling bergantung namun memperbarui baris data yang berbeda (*disjoint write set*). Pada isolasi `REPEATABLE READ`, kedua transaksi diizinkan untuk di-`COMMIT` karena tidak ada konflik pembaruan pada baris yang sama, meskipun hasil akhirnya melanggar integritas aturan bisnis.
+- **Penjelasan**: _Write Skew_ adalah anomali konkurensi di mana dua transaksi membaca sekumpulan data yang sama (_overlapping read set_), lalu membuat keputusan bisnis yang saling bergantung namun memperbarui baris data yang berbeda (_disjoint write set_). Pada isolasi `REPEATABLE READ`, kedua transaksi diizinkan untuk di-`COMMIT` karena tidak ada konflik pembaruan pada baris yang sama, meskipun hasil akhirnya melanggar integritas aturan bisnis.
 
 #### Q27. SERIALIZABLE
 
@@ -271,11 +289,11 @@ Penjelasan:
   2. **Sesi A**: Melakukan `UPDATE` pada Dr. Alice dan `COMMIT;` → **Berhasil**.
   3. **Sesi B**: Melakukan `UPDATE` pada Dr. Bob dan `COMMIT;` → **Gagal**.
 - **Hasil**: Sesi B dibatalkan saat `COMMIT` dengan mengembalikan error **`SQLSTATE 40001`** (`could not serialize access due to read/write dependencies among transactions`).
-- **Penjelasan**: Tingkat isolasi `SERIALIZABLE` berhasil mencegah *Write Skew*. PostgreSQL melacak ketergantungan baca-tulis antar-transaksi (*SIReadLock*) secara internal. Ketika Sesi A melakukan `COMMIT`, PostgreSQL mendeteksi adanya konflik ketergantungan serialisasi (*commit dependency graph*) pada Sesi B, sehingga Sesi B secara otomatis dibatalkan.
+- **Penjelasan**: Tingkat isolasi `SERIALIZABLE` berhasil mencegah _Write Skew_. PostgreSQL melacak ketergantungan baca-tulis antar-transaksi (_SIReadLock_) secara internal. Ketika Sesi A melakukan `COMMIT`, PostgreSQL mendeteksi adanya konflik ketergantungan serialisasi (_commit dependency graph_) pada Sesi B, sehingga Sesi B secara otomatis dibatalkan.
 
 #### Q28. SIReadLock
 
-- **Penjelasan**: `SIReadLock` (Serializable Snapshot Isolation Read Lock) adalah mekanisme kunci memori internal PostgreSQL yang mencatat tuple atau halaman yang dibaca oleh transaksi `SERIALIZABLE`. `SIReadLock` tidak bersifat mengunci atau menghalangi (*non-blocking*) operasi baca atau tulis dari transaksi lain, melainkan berfungsi sebagai *predicate lock* virtual untuk mendeteksi siklus konflik baca-tulis (*rw-antidependencies*). Jika siklus konflik terdeteksi, salah satu transaksi akan digagalkan untuk menjamin eksekusi yang benar-benar serializable.
+- **Penjelasan**: `SIReadLock` (Serializable Snapshot Isolation Read Lock) adalah mekanisme kunci memori internal PostgreSQL yang mencatat tuple atau halaman yang dibaca oleh transaksi `SERIALIZABLE`. `SIReadLock` tidak bersifat mengunci atau menghalangi (_non-blocking_) operasi baca atau tulis dari transaksi lain, melainkan berfungsi sebagai _predicate lock_ virtual untuk mendeteksi siklus konflik baca-tulis (_rw-antidependencies_). Jika siklus konflik terdeteksi, salah satu transaksi akan digagalkan untuk menjamin eksekusi yang benar-benar serializable.
 
 #### Q29. Pseudocode retry
 
@@ -293,10 +311,10 @@ def execute_transaction_with_retry(db_connection):
                 cursor = db_connection.cursor()
                 cursor.execute("SELECT COUNT(*) FROM lab9.dokter_jaga WHERE aktif = true")
                 count = cursor.fetchone()[0]
-                
+
                 if count > 1:
                     cursor.execute("UPDATE lab9.dokter_jaga SET aktif = false WHERE nama = 'Dr. Bob'")
-                
+
             # Operasi eksternal HARUS dilakukan SETELAH commit berhasil
             send_notification_email("Perubahan jadwal dokter berhasil disimpan.")
             return True
@@ -314,39 +332,38 @@ def execute_transaction_with_retry(db_connection):
 
 ```
 
-* **Mengapa operasi eksternal dilakukan setelah COMMIT**: Operasi eksternal seperti pengiriman surel, panggilan API pihak ketiga, atau pencetakan struk tidak dapat dibatalkan (*rollback*) jika transaksi basis data di kemudian hari mengalami kegagalan. Jika ditaruh di dalam transaksi dan terjadi *retry* akibat error `40001`, aksi eksternal tersebut akan terkirim berulang kali padahal transaksi basis datanya dibatalkan.
+- **Mengapa operasi eksternal dilakukan setelah COMMIT**: Operasi eksternal seperti pengiriman surel, panggilan API pihak ketiga, atau pencetakan struk tidak dapat dibatalkan (_rollback_) jika transaksi basis data di kemudian hari mengalami kegagalan. Jika ditaruh di dalam transaksi dan terjadi _retry_ akibat error `40001`, aksi eksternal tersebut akan terkirim berulang kali padahal transaksi basis datanya dibatalkan.
 
 ---
-
 
 ### Langkah 6 · Analisis dan Rekomendasi
 
 #### Q30. Matriks enam anomali (Mael)
 
-| Anomali | Cara reproduksi | Hasil | Mitigasi |
-| --- | --- | --- | --- |
-| **Dirty read** | Sesi A update tanpa commit; Sesi B baca dengan `READ UNCOMMITTED`. | Data kotor tidak terlihat; Sesi B membaca snapshot commit terakhir. | Arsitektur MVCC PostgreSQL. |
-| **Non-repeatable read** | Sesi A baca baris; Sesi B update + commit baris tsb; Sesi A baca ulang baris tsb. | Nilai kolom berubah di dalam satu transaksi (Q6). | `REPEATABLE READ` atau `SELECT ... FOR SHARE`. |
-| **Phantom read** | Sesi A agregasi rentang baris; Sesi B insert baris baru + commit; Sesi A hitung ulang. | Jumlah baris bertambah pada `READ COMMITTED` (Q8). | `REPEATABLE READ` atau `SERIALIZABLE`. |
-| **Lost update** | Sesi A & B baca saldo sama; aplikasi hitung manual; keduanya update berurutan. | Update Sesi A tertimpa oleh Sesi B (Q10). | Kalkulasi atomik basis data (`saldo = saldo + x`) atau `FOR UPDATE`. |
-| **Write skew** | Dua transaksi baca kondisi bersama lalu modifikasi baris berbeda (Q26). | Aturan bisnis dilanggar (0 dokter aktif). | `SERIALIZABLE` (memicu error 40001) atau penguncian rentang. |
-| **Pembacaan tidak konsisten** | Transaksi membaca multi-tabel dengan query terpisah saat transaksi lain memodifikasinya. | Hubungan data tidak sinkron antar-tabel. | Transaksi terisolasi dengan level `REPEATABLE READ`. |
+| Anomali                       | Cara reproduksi                                                                          | Hasil                                                               | Mitigasi                                                             |
+| ----------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| **Dirty read**                | Sesi A update tanpa commit; Sesi B baca dengan `READ UNCOMMITTED`.                       | Data kotor tidak terlihat; Sesi B membaca snapshot commit terakhir. | Arsitektur MVCC PostgreSQL.                                          |
+| **Non-repeatable read**       | Sesi A baca baris; Sesi B update + commit baris tsb; Sesi A baca ulang baris tsb.        | Nilai kolom berubah di dalam satu transaksi (Q6).                   | `REPEATABLE READ` atau `SELECT ... FOR SHARE`.                       |
+| **Phantom read**              | Sesi A agregasi rentang baris; Sesi B insert baris baru + commit; Sesi A hitung ulang.   | Jumlah baris bertambah pada `READ COMMITTED` (Q8).                  | `REPEATABLE READ` atau `SERIALIZABLE`.                               |
+| **Lost update**               | Sesi A & B baca saldo sama; aplikasi hitung manual; keduanya update berurutan.           | Update Sesi A tertimpa oleh Sesi B (Q10).                           | Kalkulasi atomik basis data (`saldo = saldo + x`) atau `FOR UPDATE`. |
+| **Write skew**                | Dua transaksi baca kondisi bersama lalu modifikasi baris berbeda (Q26).                  | Aturan bisnis dilanggar (0 dokter aktif).                           | `SERIALIZABLE` (memicu error 40001) atau penguncian rentang.         |
+| **Pembacaan tidak konsisten** | Transaksi membaca multi-tabel dengan query terpisah saat transaksi lain memodifikasinya. | Hubungan data tidak sinkron antar-tabel.                            | Transaksi terisolasi dengan level `REPEATABLE READ`.                 |
 
 #### Q31. Rekomendasi isolation level (Syifa)
 
-| Kebutuhan | Isolation level | Kompromi dan risiko |
-| --- | --- | --- |
-| Pembacaan sederhana | **`READ COMMITTED`** | Performa paling tinggi dan *overhead* rendah, namun rentan terhadap *Non-repeatable read* dan *Phantom read* jika ada pembaruan dari sesi lain antar-pernyataan. |
-| Laporan dengan snapshot konsisten | **`REPEATABLE READ`** | Menjamin konsistensi pembacaan data di seluruh transaksi (*point-in-time snapshot*), namun berisiko mengalami *Write Skew* jika digunakan pada transaksi pembaruan multi-baris. |
-| Aturan bisnis lintas beberapa baris | **`SERIALIZABLE`** | Menjamin integritas data total dan mencegah seluruh anomali (termasuk *Write Skew*), tetapi memiliki kompromi *overhead* performa dan risiko transaksi digagalkan dengan error `SQLSTATE 40001` sehingga wajib mengimplementasikan logika *retry* di sisi aplikasi. |
+| Kebutuhan                           | Isolation level       | Kompromi dan risiko                                                                                                                                                                                                                                                 |
+| ----------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pembacaan sederhana                 | **`READ COMMITTED`**  | Performa paling tinggi dan _overhead_ rendah, namun rentan terhadap _Non-repeatable read_ dan _Phantom read_ jika ada pembaruan dari sesi lain antar-pernyataan.                                                                                                    |
+| Laporan dengan snapshot konsisten   | **`REPEATABLE READ`** | Menjamin konsistensi pembacaan data di seluruh transaksi (_point-in-time snapshot_), namun berisiko mengalami _Write Skew_ jika digunakan pada transaksi pembaruan multi-baris.                                                                                     |
+| Aturan bisnis lintas beberapa baris | **`SERIALIZABLE`**    | Menjamin integritas data total dan mencegah seluruh anomali (termasuk _Write Skew_), tetapi memiliki kompromi _overhead_ performa dan risiko transaksi digagalkan dengan error `SQLSTATE 40001` sehingga wajib mengimplementasikan logika _retry_ di sisi aplikasi. |
 
 ---
 
 #### Q32. Tiga pelajaran utama (Agi)
 
-1. _(didukung bukti: query / urutan kejadian / pesan error)_
-2.
-3.
+1. Menghitung nilai di database lebih aman daripada menulis hasil hitung lama. Pada Q10, dua sesi menulis nilai tetap dari bacaan lama dan saldo berakhir 900.000 padahal seharusnya 1.100.000, tanpa error apa pun. Pada Q12, SET saldo = saldo - 10000 membuat dua pengurangan sama-sama tercatat (980.000). Pada Q13, FOR UPDATE membuat Sesi B menunggu lalu membaca 990.000. Pada Q14, UPDATE 0 memberi tahu aplikasi bahwa versi 1 sudah basi.
+2. Isolation level menentukan anomali yang muncul, dan hanya SERIALIZABLE menutup write skew, dengan syarat aplikasi siap mengulang. Pada Q6, READ COMMITTED menghasilkan pembacaan 1.000.000 lalu 1.200.000, sedangkan Q7 (REPEATABLE READ) tetap 1.200.000. Pada Q26 (REPEATABLE READ) kedua transaksi COMMIT dan dokter aktif menjadi 0; pada Q27 (SERIALIZABLE) salah satu transaksi gagal dengan SQLSTATE 40001. Karena itu transaksi harus bisa diulang (Q29).
+3. Lock dan MVCC punya harga: urutan kunci, antrean, dan versi lama. Pada Q20, urutan kunci berlawanan menghasilkan deadlock 40P01 (korban Sesi B, PID 392), sedangkan pada Q21 urutan id 1 lalu 2 tidak error. Pada Q22, penunggu terlihat Lock/transactionid dengan diblokir_oleh = {377} tanpa error otomatis, sehingga timeout (Q23) perlu dipasang. Pada Q15 pembaca tidak menunggu penulis berkat MVCC, tetapi Q17 menunjukkan sekitar 6 versi lama yang perlu dibersihkan vacuum.
 
 ---
 
@@ -361,21 +378,22 @@ Seluruh bukti ada di folder `bukti/`:
 
 ## 4. Tabel Ringkasan Anomali
 
-| Anomali | Penyebab | Dampak | Mitigasi |
-| --- | --- | --- | --- |
-| **Dirty read** | Membaca perubahan data transaksi lain yang belum berstatus commit. | Keputusan bisnis diambil dari data yang berpotensi dibatalkan (*rollback*). | Gunakan isolasi minimal `READ COMMITTED` (default PostgreSQL). |
-| **Non-repeatable read** | Statement membaca data yang diubah dan di-commit transaksi lain di tengah transaksi aktif. | Nilai data tidak konsisten dalam proses transaksi bertahap. | Gunakan `REPEATABLE READ` atau kunci baris pesimistik. |
-| **Phantom read** | Kueri rentang membaca tuple baru hasil *insert/delete* transaksi lain yang telah commit. | Agregasi dan laporan batch menghasilkan data yang berubah-ubah. | Terapkan isolasi `REPEATABLE READ` atau `SERIALIZABLE`. |
-| **Lost update** | Penulisan nilai hardcoded hasil hitungan aplikasi menimpa pembaruan transaksi konkuren. | Kehilangan data finansial/transaksional yang sah secara permanen. | Atomic update (`SET col = col + x`), pesimistik lock (`FOR UPDATE`), atau nomor versi. |
-| **Write skew** | Keputusan modifikasi pada baris terpisah didasarkan pada dataset bacaan yang tumpang tindih. | Pelanggaran aturan bisnis/invarian sistem secara menyeluruh. | Terapkan level `SERIALIZABLE` dengan mekanisme retry error 40001. |
+| Anomali                       | Penyebab                                                                                                      | Dampak                                                                      | Mitigasi                                                                               |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **Dirty read**                | Membaca perubahan data transaksi lain yang belum berstatus commit.                                            | Keputusan bisnis diambil dari data yang berpotensi dibatalkan (_rollback_). | Gunakan isolasi minimal `READ COMMITTED` (default PostgreSQL).                         |
+| **Non-repeatable read**       | Statement membaca data yang diubah dan di-commit transaksi lain di tengah transaksi aktif.                    | Nilai data tidak konsisten dalam proses transaksi bertahap.                 | Gunakan `REPEATABLE READ` atau kunci baris pesimistik.                                 |
+| **Phantom read**              | Kueri rentang membaca tuple baru hasil _insert/delete_ transaksi lain yang telah commit.                      | Agregasi dan laporan batch menghasilkan data yang berubah-ubah.             | Terapkan isolasi `REPEATABLE READ` atau `SERIALIZABLE`.                                |
+| **Lost update**               | Penulisan nilai hardcoded hasil hitungan aplikasi menimpa pembaruan transaksi konkuren.                       | Kehilangan data finansial/transaksional yang sah secara permanen.           | Atomic update (`SET col = col + x`), pesimistik lock (`FOR UPDATE`), atau nomor versi. |
+| **Write skew**                | Keputusan modifikasi pada baris terpisah didasarkan pada dataset bacaan yang tumpang tindih.                  | Pelanggaran aturan bisnis/invarian sistem secara menyeluruh.                | Terapkan level `SERIALIZABLE` dengan mekanisme retry error 40001.                      |
+| **Pembacaan tidak konsisten** | Beberapa query terpisah dalam satu proses membaca snapshot berbeda ketika transaksi lain commit di antaranya. | Laporan atau hubungan antartabel tidak sinkron.                             | Satu transaksi REPEATABLE READ agar semua query memakai snapshot yang sama.            |
 
 ## 5. Kesimpulan
 
-_(berbasis hasil eksperimen)_
+Eksperimen dua sesi menunjukkan bahwa transaksi saja tidak cukup untuk menjaga data tetap benar saat banyak sesi bekerja bersamaan. Lost update terjadi tanpa error ketika aplikasi menulis nilai hasil hitung lama (Q10: 900.000, seharusnya 1.100.000), dan dapat dicegah dengan pembaruan atomik (Q12), FOR UPDATE (Q13), atau version_no (Q14, ditandai UPDATE 0). Isolation level mengubah apa yang terlihat: READ COMMITTED membaca snapshot per statement (Q6, Q8), REPEATABLE READ per transaksi (Q7), tetapi write skew baru tertutup oleh SERIALIZABLE yang membatalkan salah satu transaksi dengan SQLSTATE 40001 (Q26-Q27), sehingga aplikasi harus mengulang transaksi. Lock menimbulkan risiko deadlock 40P01 (Q20), yang dihindari dengan urutan penguncian konsisten (Q21), dan antrean lock panjang yang dibatasi dengan timeout (Q22-Q23). MVCC memungkinkan pembaca tidak menunggu penulis (Q15), dengan konsekuensi versi lama menumpuk (Q16-Q17) yang perlu dibersihkan vacuum.
 
 ## 6. Pengungkapan Penggunaan AI
 
-Saya menggunakan AI assistant sebagai teman diskusi untuk memahami konsep dasar *Write Skew*, menganalisis mekanisme penanganan kesalahan pada `SERIALIZABLE`. Seluruh pengujian dua sesi dijalankan secara mandiri pada PostgreSQL 17 di Docker lokal, dan seluruh kode error (`SQLSTATE 40001` & `55P03`) serta log bukti hasil pengujian diambil dari eksekusi terminal nyata.
+Saya menggunakan AI assistant sebagai teman diskusi untuk memahami konsep dasar _Write Skew_, menganalisis mekanisme penanganan kesalahan pada `SERIALIZABLE`. Seluruh pengujian dua sesi dijalankan secara mandiri pada PostgreSQL 17 di Docker lokal, dan seluruh kode error (`SQLSTATE 40001` & `55P03`) serta log bukti hasil pengujian diambil dari eksekusi terminal nyata.
 
 ```
 
@@ -392,3 +410,4 @@ Saya menggunakan AI assistant sebagai teman diskusi untuk memahami konsep dasar 
 | Syifa Nazira               | 251402126 | Q24-Q29, Q31, bukti/serializable.md        |
 
 **Tautan Merge Request:** _(diisi Jelita setelah semua branch digabung)_
+```

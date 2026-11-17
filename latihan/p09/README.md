@@ -12,7 +12,7 @@ Mendemonstrasikan transaksi dengan dua sesi PostgreSQL 17 dan menjelaskan hasiln
 | Nama                       | NIM       | Bagian                                                      |
 | -------------------------- | --------- | ----------------------------------------------------------- |
 | Jelita Hati Sinurat        | 251402141 | `q00_setup.sql`, Q1-Q5, README, kerangka laporan, tautan MR |
-| M. Ismail Dzakwan Rangkuti | 251402014 | Q6-Q11, Q30, `bukti/isolation-level.md`                     |
+| M. Dzakwan Ismail Rangkuti | 251402014 | Q6-Q11, Q30, `bukti/isolation-level.md`                     |
 | Agi Aginta Sembiring       | 251402059 | Q12-Q17, Q32                                                |
 | M. Azkha Amorie            | 251402092 | Q18-Q23, lingkungan, `bukti/deadlock.md`                    |
 | Syifa Nazira               | 251402126 | Q24-Q29, Q31, `bukti/serializable.md`, pengungkapan AI      |

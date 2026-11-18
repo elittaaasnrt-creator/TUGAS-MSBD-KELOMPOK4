@@ -538,22 +538,25 @@ Apakah penyaring `WHERE tenant_id` di aplikasi masih perlu? Sebut rencana ekseku
 ### Refleksi C (Azkha)
 Satu lapis yang menghapus sebab masalah, dan peran tiga lapis lain (bukti Q14 dan Q18):
 
-### Refleksi D (Syifa)
+### Refleksi D (Agi)
 Dua ancaman yang tetap terbuka dan satu risiko operasional enkripsi kolom (bukti Q21–Q24):
 
-### Refleksi E (Agi)
+### Refleksi E (Syifa)
 Ketegangan Pasal 31 vs Pasal 43, dan satu usulan penyelesaian:
+
+Pasal 31 UU No. 27 Tahun 2022 mewajibkan Pengendali Data Pribadi untuk merekam seluruh kegiatan pemrosesan data pribadi (yang secara teknis diwujudkan melalui tabel `jejak_audit`), sedangkan Pasal 43 memberikan hak kepada Subjek Data Pribadi untuk meminta penghapusan dan pemusnahan data pribadinya. Ketegangan muncul pada percobaan Q29: ketika baris pelanggan dihapus dari tabel utama (`sisa_tabel_utama = 0`), trigger `rekam_audit` justru menyimpan salinan lengkap baris sebelum dihapus (`to_jsonb(OLD)`) ke kolom `nilai_lama` pada `jejak_audit`, sehingga identitas sensitif seperti `nik` tetap bertahan (`sisa_jejak_audit = 2`).
+
+**Usulan penyelesaian:** Menerapkan **pseudonimisasi dan redaksi selektif pada catatan audit** (*crypto-shredding* atau penghapusan atribut pengenal langsung di kolom `nilai_lama`/`nilai_baru`). Alih-alih menyimpan `nik`, `surel`, atau `rekening` secara mentah di dalam JSONB audit, fungsi trigger hanya mencatat kolom non-pengenal atau nilai hash/token dari `id` pelanggan, serta menjalankan prosedur pembersihan atribut sensitif (`nilai_lama - 'nik' - 'surel' - 'rekening'`) pada `jejak_audit` saat permintaan penghapusan Pasal 43 dieksekusi. Dengan demikian, metadata audit (siapa melakukan aksi apa, kapan, dan pada kunci token berapa) tetap utuh untuk memenuhi akuntabilitas Pasal 31 tanpa menyimpan data pribadi yang dapat mengidentifikasi subjek secara langsung setelah hak hapus Pasal 43 dipenuhi.
+
 
 ## Peta Tiket #1134 ke UU PDP
 | Keluhan | Pasal relevan | Kontrol teknis pencegah | Bukti |
 |---|---|---|---|
-| K1 | | | |
-| K2 | | | |
-| K3 | | | |
-| K4 | | | |
-| K5 | | | |
-
-*(Isi teks lima keluhan dari Tiket #1134. Detail lengkap di `q30_peta_uu_pdp.md`.)*
+| **K1:** Akun aplikasi berjalan dengan hak terlalu tinggi (setara pemilik objek) sehingga berisiko mengubah struktur tabel maupun memanipulasi data secara tidak sah. | Pasal 35 & Pasal 39 UU No. 27 Tahun 2022 | Pemisahan peran (*least privilege*): aplikasi dilarang login sebagai `skema_owner` dan wajib memakai peran non-pemilik (`app_portal`, `app_laporan`) dengan hak minimum per tabel serta `ALTER DEFAULT PRIVILEGES`. | **Q1–Q5**: `REVOKE` pada `skema_owner` tetap bisa dipulihkan sendiri (`UPDATE 1`), sehingga aplikasi diwajibkan memakai peran `app_*` non-pemilik. |
+| **K2:** Terjadi aktivitas pembacaan atau perubahan data massal yang mencurigakan di luar jam kerja operasional tanpa terdeteksi. | Pasal 31 & Pasal 39 UU No. 27 Tahun 2022 | Trigger audit otomatis `SECURITY DEFINER` (`rekam_audit`) memakai `session_user` ke tabel `jejak_audit` yang terkunci dari peran aplikasi, dilengkapi kueri deteksi anomali lonjakan baris dan akses luar jam kerja (`Asia/Jakarta`). | **Q25–Q27**: Trigger merekam `pelaku = 'app_portal'`, upaya `DELETE` audit oleh `app_portal` ditolak (`permission denied`), dan kueri Q27 menyaring anomali jam kerja/lonjakan. |
+| **K3:** Data pelanggan antar-penyewa (*tenant*) dapat saling terlihat atau bocor melalui kueri aplikasi. | Pasal 16 ayat (2) huruf e & Pasal 35 UU No. 27 Tahun 2022 | Penerapan *Row-Level Security* (`ENABLE` & `FORCE ROW LEVEL SECURITY`) pada `lab11.pelanggan` dengan kebijakan berbasis variabel sesi `nullif(current_setting('app.tenant', true), '')::int`. | **Q6–Q9**: Sebelum kebijakan dibuat hasil `0` baris (*default deny*); saat `app.tenant = '1'`, kueri ke `tenant_id = 2` menghasilkan `0` baris. |
+| **K4:** Data pribadi sensitif (NIK, nomor rekening, saldo, dan kata sandi) tersimpan dalam bentuk teks terang tanpa pengamanan. | Pasal 35 & Pasal 36 UU No. 27 Tahun 2022 | Hashing kata sandi dengan `crypt(..., gen_salt('bf', 8))`, enkripsi kolom `rekening` dengan `pgp_sym_encrypt`, serta penyamaran NIK/surel/saldo lewat *security barrier view* (`v_pelanggan_samar`) untuk `app_analitik`. | **Q19–Q23**: Hash bcrypt menghasilkan *ciphertext* unik tiap dijalankan, dan `app_analitik` hanya dapat membaca NIK tersamar (`xxxxxxxxxxxx1234`). |
+| **K5:** Subjek data meminta penghapusan datanya, namun salinan identitas (NIK) masih tertinggal di dalam log audit sistem. | Pasal 43 & Pasal 44 UU No. 27 Tahun 2022 | Pencatatan antrean pemenuhan hak hapus pada tabel `permintaan_hapus` bertenggat 72 jam (`DEFAULT now() + interval '72 hours'`), penghapusan berjenjang (`transaksi` lalu `pelanggan`), serta redaksi atribut sensitif pada payload JSONB audit. | **Q28–Q29**: `sisa_tabel_utama = 0` dan `sisa_transaksi = 0`, namun `sisa_jejak_audit = 2` karena `nilai_lama` masih menyimpan salinan NIK lama. |
 
 ## R1 · Tiga Disiplin Keamanan
 Tiap disiplin: lapisan penegakan, akibat bila dilanggar, satu bukti percobaan.

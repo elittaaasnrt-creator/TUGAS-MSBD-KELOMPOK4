@@ -153,94 +153,250 @@ WHERE r.rolname LIKE 'app\_%' ORDER BY 1;
 - **Alasan keputusan:** Aplikasi tidak pernah login sebagai pemilik karena hak pemilik (DROP, ALTER, GRANT) tidak bisa dicabut, sehingga satu celah injection akan menyerahkan seluruh skema.
 
 ### Q6 · Default deny RLS
-**Penanggung jawab:** Mael · **Berkas:** `q06_*.sql`
+**Penanggung jawab:** Mael · **Berkas:** `q06_default_deny.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres` (untuk `ALTER TABLE`), lalu `app_laporan` lewat `SET LOCAL ROLE`
+- **Perintah:**
 ```sql
--- tempel perintah
+ALTER TABLE lab11.pelanggan ENABLE ROW LEVEL SECURITY;
+
+BEGIN;
+  SET LOCAL ROLE app_laporan;
+  SELECT current_user AS peran_aktif,
+         count(*)     AS sebelum_ada_kebijakan
+  FROM lab11.pelanggan;
+COMMIT;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+ALTER TABLE
+BEGIN
+SET
+ peran_aktif | sebelum_ada_kebijakan 
+-------------+-----------------------
+ app_laporan |                     0
+(1 row)
+
+COMMIT
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** `app_laporan` mengembalikan `0` baris meskipun memiliki hak `SELECT` pada tabel `lab11.pelanggan`.
+- **Alasan keputusan:** PostgreSQL menerapkan perilaku *default-deny* begitu RLS diaktifkan tanpa kebijakan. Jika administrator lupa membuat `CREATE POLICY`, basis data menolak seluruh baris daripada membocorkan data antar penyewa.
 
 ### Q7 · Kebijakan isolasi penyewa
-**Penanggung jawab:** Mael · **Berkas:** `q07_*.sql`
+**Penanggung jawab:** Mael · **Berkas:** `q07_kebijakan_penyewa.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres`
+- **Perintah:**
 ```sql
--- tempel perintah
+CREATE POLICY p_tenant_baca ON lab11.pelanggan
+  FOR SELECT TO app_read, app_write
+  USING (tenant_id = nullif(current_setting('app.tenant', true), '')::int);
+
+CREATE POLICY p_tenant_tulis ON lab11.pelanggan
+  FOR ALL TO app_write
+  USING      (tenant_id = nullif(current_setting('app.tenant', true), '')::int)
+  WITH CHECK (tenant_id = nullif(current_setting('app.tenant', true), '')::int);
+
+SELECT policyname, cmd, roles
+FROM pg_policies
+WHERE schemaname = 'lab11' AND tablename = 'pelanggan'
+ORDER BY policyname;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+CREATE POLICY
+CREATE POLICY
+   policyname   |  cmd   |        roles         
+----------------+--------+----------------------
+ p_tenant_baca  | SELECT | {app_read,app_write}
+ p_tenant_tulis | ALL    | {app_write}
+(2 rows)
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** Saat `app.tenant` belum disetel atau bernilai string kosong `''`, ekspresi `nullif(..., '')` menghasilkan `NULL` sehingga perbandingan `tenant_id = NULL` bernilai tidak diketahui dan tidak melempar galat sintaks integer.
+- **Alasan keputusan:** Menggunakan `nullif(current_setting('app.tenant', true), '')::int` mencegah galat `invalid input syntax for type integer: ""` pada PostgreSQL 17 ketika koneksi dari *connection pool* dipakai ulang setelah konteks sebelumnya di-reset menjadi string kosong.
 
 ### Q8 · Uji positif dan negatif
-**Penanggung jawab:** Mael · **Berkas:** `q08_*.sql`
+**Penanggung jawab:** Mael · **Berkas:** `q08_uji_positif_negatif.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `app_laporan` (dengan `SET LOCAL app.tenant = '1'`)
+- **Perintah:**
 ```sql
--- tempel perintah
+BEGIN;
+  SET LOCAL ROLE app_laporan;
+  SET LOCAL app.tenant = '1';
+
+  SELECT count(*) AS terlihat_tenant1
+  FROM lab11.pelanggan;
+
+  SELECT count(*) AS harus_nol
+  FROM lab11.pelanggan
+  WHERE tenant_id = 2;
+COMMIT;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+BEGIN
+SET
+SET
+ terlihat_tenant1 
+------------------
+            10000
+(1 row)
+
+ harus_nol 
+-----------
+         0
+(1 row)
+
+COMMIT
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** Permintaan eksplisit `WHERE tenant_id = 2` sebagai penyewa 1 menghasilkan `0` baris karena predikat kebijakan `tenant_id = 1` otomatis disuntikkan oleh basis data.
+- **Alasan keputusan:** Uji positif saja hanya membuktikan data bisa dibaca, sedangkan uji negatif membuktikan bahwa batas isolasi antar penyewa benar-benar ditegakkan bahkan ketika query aplikasi meminta data penyewa lain secara langsung.
 
 ### Q9 · FORCE RLS dan BYPASSRLS
-**Penanggung jawab:** Mael · **Berkas:** `q09_*.sql`
+**Penanggung jawab:** Mael · **Berkas:** `q09_force_dan_bypass.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres` (DDL/DCL), `skema_owner`, dan `app_analitik`
+- **Perintah:**
 ```sql
--- tempel perintah
+BEGIN;
+  SET LOCAL ROLE skema_owner;
+  SELECT count(*) AS owner_sebelum_force FROM lab11.pelanggan;
+COMMIT;
+
+ALTER TABLE lab11.pelanggan FORCE ROW LEVEL SECURITY;
+
+BEGIN;
+  SET LOCAL ROLE skema_owner;
+  SELECT count(*) AS owner_sesudah_force FROM lab11.pelanggan;
+COMMIT;
+
+GRANT pg_read_all_data TO app_analitik;
+BEGIN;
+  SET LOCAL ROLE app_analitik;
+  SELECT count(*) AS analitik_dengan_read_all FROM lab11.pelanggan;
+COMMIT;
+
+ALTER ROLE app_analitik BYPASSRLS;
+BEGIN;
+  SET LOCAL ROLE app_analitik;
+  SELECT count(*) AS analitik_dengan_bypassrls FROM lab11.pelanggan;
+COMMIT;
+
+ALTER ROLE app_analitik NOBYPASSRLS;
+REVOKE pg_read_all_data FROM app_analitik;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+ owner_sebelum_force 
+---------------------
+               30000
+
+ owner_sesudah_force 
+---------------------
+                   0
+
+ analitik_dengan_read_all 
+--------------------------
+                        0
+
+ analitik_dengan_bypassrls 
+---------------------------
+                     30000
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** Setelah `FORCE ROW LEVEL SECURITY`, `skema_owner` tanpa konteks penyewa melihat `0` baris; `app_analitik` dengan `pg_read_all_data` juga melihat `0` baris.
+- **Alasan keputusan:** Secara bawaan pemilik tabel dikecualikan dari RLS, sehingga `FORCE ROW LEVEL SECURITY` wajib dipasang. Percobaan juga membuktikan bahwa `pg_read_all_data` hanya memberi hak `SELECT` tingkat tabel dan tidak membawa `BYPASSRLS`, sedangkan atribut `BYPASSRLS` meruntuhkan seluruh isolasi baris sehingga tidak boleh diberikan ke peran aplikasi maupun analis.
 
 ### Q10 · Kolam koneksi
-**Penanggung jawab:** Mael · **Berkas:** `q10_*.sql`
+**Penanggung jawab:** Mael · **Berkas:** `q10_kolam_koneksi.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres` dan `app_laporan` pada satu koneksi session yang sama
+- **Perintah:**
 ```sql
--- tempel perintah
+-- Salah (SET tanpa LOCAL):
+SET app.tenant = '1';
+BEGIN;
+  SET LOCAL ROLE app_laporan;
+  SELECT current_setting('app.tenant', true) AS konteks_tertinggal,
+         count(*) AS baris_bocor_ke_penyewa2
+  FROM lab11.pelanggan;
+COMMIT;
+
+RESET app.tenant;
+
+-- Benar (set_config dengan is_local = true):
+BEGIN;
+  SELECT set_config('app.tenant', '1', true);
+  SET LOCAL ROLE app_laporan;
+  SELECT count(*) AS akses_sah_penyewa1 FROM lab11.pelanggan;
+COMMIT;
+
+BEGIN;
+  SET LOCAL ROLE app_laporan;
+  SELECT coalesce(nullif(current_setting('app.tenant', true), ''), '<kosong>') AS konteks_setelah_commit,
+         count(*) AS baris_terlihat_penyewa2
+  FROM lab11.pelanggan;
+COMMIT;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+ konteks_tertinggal | baris_bocor_ke_penyewa2 
+--------------------+-------------------------
+ 1                  |                   10000
+
+ akses_sah_penyewa1 
+--------------------
+              10000
+
+ konteks_setelah_commit | baris_terlihat_penyewa2 
+------------------------+-------------------------
+ <kosong>               |                       0
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** Setelah `COMMIT` pada pola `set_config(..., true)`, permintaan berikutnya yang lupa menyetel konteks mendapat nilai `<kosong>` dan `0` baris (gagal aman).
+- **Alasan keputusan:** Pada arsitektur *connection pooling*, koneksi fisik dipakai bergantian antar penyewa. Penggunaan `SET` biasa meninggalkan nilai di level sesi sehingga bocor ke permintaan berikutnya, sedangkan `SET LOCAL` atau `set_config(..., true)` membatasi umur variabel hanya di dalam transaksi dan otomatis bersih saat transaksi berakhir.
 
 ### Q11 · Tiga celah isolasi
-**Penanggung jawab:** Mael · **Berkas:** `q11_*.sql`
+**Penanggung jawab:** Mael · **Berkas:** `q11_tiga_celah.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres` dan `app_portal` (dalam transaksi `ROLLBACK`)
+- **Perintah:**
 ```sql
--- tempel perintah
+BEGIN;
+  CREATE POLICY p_impor_longgar ON lab11.pelanggan
+    FOR INSERT TO app_write
+    WITH CHECK (true);
+
+  SET LOCAL ROLE app_portal;
+  SET LOCAL app.tenant = '1';
+
+  INSERT INTO lab11.pelanggan (id, tenant_id, nama, nik, surel, lahir, kota, saldo, rekening, dibuat_pada)
+  VALUES (99999, 2, 'Penyusup Tenant 2', '1271000000099999', 'susup@contoh.test',
+          DATE '1995-05-05', 'Medan', 500000, '9999999999', now());
+
+  SELECT count(*) AS terlihat_oleh_penyewa1
+  FROM lab11.pelanggan
+  WHERE id = 99999;
+ROLLBACK;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+BEGIN
+CREATE POLICY
+SET
+SET
+INSERT 0 1
+ terlihat_oleh_penyewa1 
+------------------------
+                      0
+(1 row)
+
+ROLLBACK
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** Baris dengan `tenant_id = 2` berhasil disisipkan oleh penyewa 1 (`INSERT 0 1`), walau tidak terlihat oleh penyewa 1 sendiri (`0` baris).
+- **Alasan keputusan:** Tiga cara isolasi RLS masih bisa gagal beserta perbaikannya:
+  1. **Kebijakan permisif tambahan yang terlalu longgar** (misalnya `FOR INSERT WITH CHECK (true)` untuk impor): PostgreSQL menggabungkan seluruh kebijakan permisif dengan logika `OR` sehingga kebijakan longgar membatalkan kebijakan ketat; perbaikannya adalah mengganti ekspresi `true` dengan pemeriksaan `tenant_id` yang sah atau menggunakan kebijakan `RESTRICTIVE`.
+  2. **Kebocoran konteks penyewa di kolam koneksi atau penyetelan `app.tenant` dari input tak tervalidasi**: Jika aplikasi memakai `SET` tanpa `LOCAL` atau mengambil nilai dari klien tanpa validasi token sesi sisi server, penyewa dapat menyamar; perbaikannya adalah selalu menyetel konteks menggunakan `set_config('app.tenant', ..., true)` dari klaim sesi terautentikasi.
+  3. **Akses melalui `VIEW` tanpa `security_invoker` atau fungsi `SECURITY DEFINER` milik pemilik objek**: Keduanya berjalan dengan hak pemilik objek (bukan pemanggil) sehingga kebijakan RLS peran aplikasi dapat dilewati; perbaikannya adalah mengaktifkan `security_invoker = true` pada *view* penyewa dan menghindari `SECURITY DEFINER` untuk query data multi-penyewa.
 
 ### Q12 · Perilaku normal rentan.py
 **Penanggung jawab:** Azkha · **Berkas:** `q12_*.sql`
@@ -532,9 +688,13 @@ WHERE r.rolname LIKE 'app\_%' ORDER BY 1;
 Mengapa "mencabut hak" bukan jalan keluar K1, dan apa jalan keluarnya (bukti dari Q1):
 
 Pada Q1, `REVOKE UPDATE` memang membuat `skema_owner` ditolak (`ERROR: permission denied for table pelanggan`), tetapi satu `GRANT UPDATE` yang dijalankan pemilik sendiri langsung memulihkannya (`UPDATE 1`). Q2 menambah bukti bahwa DROP dan ALTER bahkan bukan hak yang bisa dicabut (`unrecognized privilege type "drop"`). Jadi risikonya melekat pada kepemilikan, bukan pada daftar hak, dan mencabut hak hanya menutup pintu yang kuncinya masih dipegang pemilik. Itu sebabnya "mencabut hak" bukan jalan keluar untuk K1. Jalan keluarnya adalah memisahkan peran: pemilik tidak pernah dipakai login aplikasi (hanya untuk migrasi), aplikasi memakai peran `app_*` non-pemilik dengan hak minimum per tabel (Q5), `ALTER DEFAULT PRIVILEGES` untuk objek baru (Q3), dan `FORCE ROW LEVEL SECURITY` supaya pemilik pun tunduk pada kebijakan.
+
 ### Refleksi B (Mael)
 Apakah penyaring `WHERE tenant_id` di aplikasi masih perlu? Sebut rencana eksekusi (`EXPLAIN`):
 
+**Ya, penyaring `WHERE tenant_id` di aplikasi tetap perlu ditulis**, meskipun RLS sudah aktif di basis data. Keduanya memikul tugas yang berbeda dalam arsitektur pertahanan berlapis:
+1. **Tugas RLS (Batas Keamanan / *Security Boundary*):** Ditegakkan oleh basis data sebagai jaring pengaman wajib (*fail-safe*) agar data lintas penyewa tidak pernah bocor sekalipun pengembang lupa menulis klausa `WHERE` atau terjadi celah pada kode aplikasi.
+2. **Tugas `WHERE tenant_id` di Aplikasi (Kejelasan Niat & Optimasi Rencana Eksekusi):** Menyatakan niat bisnis secara eksplisit dan membantu perencana query (*query planner*) PostgreSQL dalam menyusun rencana eksekusi (`EXPLAIN`). Ketika predikat `WHERE tenant_id = <konstanta>` ditulis langsung oleh aplikasi, *planner* dapat melakukan pemangkasan partisi (*partition pruning*) maupun pemilihan indeks (*Index Scan*) secara langsung saat tahap perencanaan. Sebaliknya, jika hanya mengandalkan ekspresi dinamis `nullif(current_setting('app.tenant', true), '')::int` dari RLS, nilai parameter sesi sering kali baru dievaluasi saat eksekusi sehingga berisiko menurunkan efisiensi pemilihan indeks pada tabel besar.
 ### Refleksi C (Azkha)
 Satu lapis yang menghapus sebab masalah, dan peran tiga lapis lain (bukti Q14 dan Q18):
 
@@ -564,9 +724,9 @@ Tiap disiplin: lapisan penegakan, akibat bila dilanggar, satu bukti percobaan.
 - Bukti (Q...):
 
 ### 2. Isolasi data / RLS (Mael)
-- Lapisan penegakan:
-- Bila dilanggar:
-- Bukti (Q...):
+- **Lapisan penegakan:** Lapisan mesin basis data (PostgreSQL) pada tingkat baris tabel melalui `ENABLE/FORCE ROW LEVEL SECURITY` dan `CREATE POLICY` (`USING` dan `WITH CHECK`).
+- **Bila dilanggar:** Query yang melanggar predikat kebijakan tidak membocorkan data penyewa lain—operasi pembacaan (`SELECT`) otomatis menyaring baris menjadi `0` hasil, sedangkan operasi penulisan (`INSERT`/`UPDATE`) yang melanggar `WITH CHECK` langsung ditolak dengan galat `new row violates row-level security policy`.
+- **Bukti (Q8 & Q9):** Pada Q8, `app_laporan` penyewa 1 yang secara eksplisit meminta `WHERE tenant_id = 2` hanya menerima `0` baris, sementara data miliknya sendiri (`10.000` baris) tetap terbaca penuh. Pada Q9, setelah `FORCE ROW LEVEL SECURITY` diaktifkan, bahkan pemilik tabel (`skema_owner`) tanpa konteks penyewa tersaring menjadi `0` baris.
 
 ### 3. Kriptografi (Syifa)
 - Lapisan penegakan:
@@ -576,19 +736,19 @@ Tiap disiplin: lapisan penegakan, akibat bila dilanggar, satu bukti percobaan.
 ## Pernyataan Etika
 Seluruh percobaan serangan hanya dijalankan pada kontainer lab11 milik sendiri di jaringan tertutup yang tidak tersambung ke internet. Kami memahami bahwa menjalankannya pada sistem lain adalah tindak pidana.
 
-| Nama | Tanda tangan | Tanggal |
-|---|---|---|
-| Jelita | | |
-| Mael | | |
-| Azkha | | |
-| Syifa | | |
-| Agi | | |
+| Nama                       | Tanda tangan | Tanggal |
+|----------------------------|--------------|---------|
+| Jelita Hati Sinurat        |              |         |
+| M. Dzakwan Ismail Rangkuti |M. Dzakwan Ismail Rangkuti | 18 November 2026 |
+| Agi Aginta Sembiring       |              |         |
+| M. Azkha Amorie            |              |         |
+| Syifa Nazira               |              |         |
 
 ## Penggunaan AI dan Verifikasi
-| Nama | Bagian yang dibantu AI | Cara memverifikasi (dijalankan ulang, dibandingkan dengan materi, dst.) |
-|---|---|---|
-| Jelita | | |
-| Mael | | |
-| Azkha | | |
-| Syifa | | |
-| Agi | | |
+| Nama                      -| Bagian yang dibantu AI | Cara memverifikasi (dijalankan ulang, dibandingkan dengan materi, dst.) |
+|----------------------------|------------------------|-------------------------------------------------------------------------|
+| Jelita Hati Sinurat        |                        |                                                                         |
+| M. Dzakwan Ismail Rangkuti | Penyusunan skrip pengujian RLS Q6–Q11 dan perumusan analisis Refleksi B | Menjalankan langsung seluruh skrip q06–q11 di kontainer lab11-db jaringan tertutup, memverifikasi angka keluaran (0 vs 10.000 vs 30.000 baris), dan mencocokkan dengan materi segmen 03. | 
+| Agi Aginta Sembiring       |                        |                                                                         |
+| M. Azkha Amorie            |                        |                                                                         |
+| Syifa Nazira               |                        |                                                                         |

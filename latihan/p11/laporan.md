@@ -635,94 +635,264 @@ ROLLBACK
 - **Alasan keputusan:** Memasang `statement_timeout` di tingkat peran basis data membatasi konsumsi sumber daya CPU dan kunci (*lock*) apabila penyerang menyuntikkan fungsi penunda (`pg_sleep`) atau query berat (*Denial of Service*).
 
 ### Q19 · Hash vs enkripsi
-**Penanggung jawab:** Azkha · **Berkas:** `q19_*.sql`
+**Penanggung jawab:** Azkha · **Berkas:** `q19_hash_vs_enkripsi.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres` (dalam transaksi `ROLLBACK`)
+- **Perintah:**
 ```sql
--- tempel perintah
+SELECT id, username, kata_sandi AS sandi_awal
+FROM lab11.akun ORDER BY id LIMIT 3;
+
+BEGIN;
+  UPDATE lab11.akun
+  SET kata_sandi = crypt('rahasia123', gen_salt('bf', 8))
+  WHERE id IN (1, 2);
+
+  SELECT id, username,
+         kata_sandi AS hash_tersimpan,
+         (kata_sandi = crypt('rahasia123', kata_sandi)) AS verifikasi_sandi_benar,
+         (kata_sandi = crypt('salah999', kata_sandi))   AS verifikasi_sandi_salah
+  FROM lab11.akun WHERE id IN (1, 2) ORDER BY id;
+
+  WITH uji_enkripsi AS (
+    SELECT id, nama, pgp_sym_encrypt(nik, 'kunci-master-lab11') AS nik_terenkripsi
+    FROM lab11.pelanggan WHERE id = 1
+  )
+  SELECT id, nama,
+         encode(nik_terenkripsi, 'base64') AS ciphertext_base64,
+         pgp_sym_decrypt(nik_terenkripsi, 'kunci-master-lab11') AS hasil_dekripsi
+  FROM uji_enkripsi;
+ROLLBACK;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+ id |  username  |                        hash_tersimpan                        | verifikasi_sandi_benar | verifikasi_sandi_salah 
+----+------------+--------------------------------------------------------------+------------------------+------------------------
+  1 | admin_alfa | $2a$08$fZoY8wrPnt6Qh9hwKSdrF.tzZ0S11.PZU7M9S5kq4yG92sTfHIwFe | t                      | f
+  2 | admin_beta | $2a$08$VTwl4X0RpXytmbfeGwFEcu.9UPrJlYR3w2Wr3mXaNuUHL6F58RjaC | t                      | f
+
+ id |    nama     |                              ciphertext_base64                               |  hasil_dekripsi  
+----+-------------+------------------------------------------------------------------------------+------------------
+  1 | Pelanggan 1 | ww0EBwMCrTQy7XRh3kho0kEBQDM6qc65FehO28FXx1QG0xor+p1gtzKIICHNZfIIUuF1rrAqvohr+| 1271000000007919
+    |             | yLp/dMjTvvsu64xOR5xgKSDuEPi0vlRL4Q==                                         | 
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** Pencocokan kata sandi dengan masukan salah (`salah999`) menghasilkan `verifikasi_sandi_salah = f`, sementara dua akun dengan kata sandi identik tetap menghasilkan string hash *bcrypt* berbeda berkat *salt* acak per baris.
+- **Alasan keputusan:** Kata sandi tidak pernah perlu dipulihkan ke teks asal sehingga wajib memakai hash satu arah ber-*salt* (`crypt` + `gen_salt('bf')`), sedangkan atribut identitas seperti NIK masih dibutuhkan oleh aplikasi sehingga menggunakan enkripsi simetris dua arah (`pgp_sym_encrypt`/`pgp_sym_decrypt`).
 
 ### Q20 · Biaya kerja hash
-**Penanggung jawab:** Azkha · **Berkas:** `q20_*.sql`
+**Penanggung jawab:** Azkha · **Berkas:** `q20_biaya_kerja_hash.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres`
+- **Perintah:**
 ```sql
--- tempel perintah
+\timing on
+SELECT encode(digest('rahasia123', 'sha256'), 'hex') AS hash_sha256_cepat;
+SELECT crypt('rahasia123', gen_salt('bf', 4)) AS bcrypt_cost_4;
+SELECT crypt('rahasia123', gen_salt('bf', 8)) AS bcrypt_cost_8;
+SELECT crypt('rahasia123', gen_salt('bf', 12)) AS bcrypt_cost_12;
+\timing off
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+hash_sha256_cepat : bee5688aea66a47460b19c76f8f199c6b9585eb726f8322b1429793863609ca2  | Time: 0.731 ms
+bcrypt_cost_4     : $2a$04$2K0OU83032gGGh1J7N003uAQaYa1lXCQNPIKqyQVSr9AGOUt17qxW      | Time: 1.007 ms
+bcrypt_cost_8     : $2a$08$.yXLbpvRphxjTJkQmd0QiOBzMgjf3yWdFKYW1Q70Y2sTPak0yB/F.      | Time: 12.241 ms
+bcrypt_cost_12    : $2a$12$eZD/UQwPCFOT3NFOfFf5fOLrCgwGbnJ73s2.u6TW7WsxFPFrWgm/m      | Time: 177.335 ms
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** Hash kriptografi cepat seperti `SHA-256` selesai dalam `0.731 ms`, sehingga memungkinkan penyerang melakukan tebakan *brute-force* massal berkecepatan tinggi bila tabel akun bocor.
+- **Alasan keputusan:** Fungsi hash adaptif *bcrypt* sengaja menambah iterasi eksponensial ($2^{\text{cost}}$) agar biaya komputasi penyerang melonjak tajam. Faktor biaya `cost = 12` (`177.335 ms`) memberi keseimbangan ideal: latensi di bawah 200 ms tetap nyaman untuk autentikasi pengguna sah, tetapi memperlambat serangan tebakan sandi ratusan kali lipat.
 
 ### Q21 · Enkripsi kolom
-**Penanggung jawab:** Azkha · **Berkas:** `q21_*.sql`
+**Penanggung jawab:** Azkha · **Berkas:** `q21_enkripsi_kolom.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres` (dalam transaksi `ROLLBACK`)
+- **Perintah:**
 ```sql
--- tempel perintah
+BEGIN;
+  ALTER TABLE lab11.pelanggan ADD COLUMN nik_enc bytea, ADD COLUMN rekening_enc bytea;
+  SET LOCAL app.enc_key = 'KunciRahasia-KMS-2026!';
+
+  UPDATE lab11.pelanggan
+  SET nik_enc      = pgp_sym_encrypt(nik, current_setting('app.enc_key')),
+      rekening_enc = pgp_sym_encrypt(rekening, current_setting('app.enc_key'))
+  WHERE id <= 3;
+
+  SELECT id, nama,
+         left(encode(nik_enc, 'hex'), 32) || '...' AS nik_ciphertext_hex,
+         left(encode(rekening_enc, 'hex'), 32) || '...' AS rekening_ciphertext_hex
+  FROM lab11.pelanggan WHERE id <= 3 ORDER BY id;
+
+  SELECT id, nama,
+         pgp_sym_decrypt(nik_enc, current_setting('app.enc_key'))      AS nik_terdekripsi,
+         pgp_sym_decrypt(rekening_enc, current_setting('app.enc_key')) AS rekening_terdekripsi
+  FROM lab11.pelanggan WHERE id <= 3 ORDER BY id;
+
+  SELECT pgp_sym_decrypt(nik_enc, 'KunciSalah123') AS coba_kunci_salah
+  FROM lab11.pelanggan WHERE id = 1;
+ROLLBACK;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+ id |    nama     |         nik_ciphertext_hex          |       rekening_ciphertext_hex       
+----+-------------+-------------------------------------+-------------------------------------
+  1 | Pelanggan 1 | c30d04070302a611a9889043b36978d2... | c30d040703029706d0b34115641378d2...
+  2 | Pelanggan 2 | c30d040703025638911242f55f886ad2... | c30d04070302ec4c88412ef5700164d2...
+  3 | Pelanggan 3 | c30d04070302ccf1f3e1265f6acf61d2... | c30d040703023ef76e37bc84dc4763d2...
+
+ id |    nama     | nik_terdekripsi  | rekening_terdekripsi 
+----+-------------+------------------+----------------------
+  1 | Pelanggan 1 | 1271000000007919 | 0000104729
+  2 | Pelanggan 2 | 1271000000015838 | 0000209458
+  3 | Pelanggan 3 | 1271000000023757 | 0000314187
+
+ERROR:  Wrong key or corrupt data
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** Percobaan dekripsi menggunakan kunci yang salah (`KunciSalah123`) langsung ditolak dengan galat `ERROR: Wrong key or corrupt data`.
+- **Alasan keputusan:** Menyimpan *ciphertext* bertipe `bytea` di kolom tabel sementara kunci disuntikkan dari luar basis data (aplikasi/KMS via variabel sesi `app.enc_key`) melindungi kerahasiaan data apabila berkas penyimpanan atau salinan cadangan (`pg_dump`) jatuh ke pihak tidak berwenang.
 
 ### Q22 · Kunci bocor
-**Penanggung jawab:** Azkha · **Berkas:** `q22_*.sql`
+**Penanggung jawab:** Azkha · **Berkas:** `q22_kunci_bocor.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres` (dalam transaksi `ROLLBACK`)
+- **Perintah:**
 ```sql
--- tempel perintah
+BEGIN;
+  ALTER TABLE lab11.pelanggan ADD COLUMN nik_enc bytea, ADD COLUMN versi_kunci smallint DEFAULT 1;
+  UPDATE lab11.pelanggan
+  SET nik_enc = pgp_sym_encrypt(nik, 'KunciLama-V1-2026'), versi_kunci = 1
+  WHERE id <= 2;
+
+  CREATE VIEW lab11.v_pelanggan_buruk AS
+  SELECT id, nama, pgp_sym_decrypt(nik_enc, 'KunciLama-V1-2026') AS nik
+  FROM lab11.pelanggan;
+
+  SELECT viewname, definition AS definisi_view_membocorkan_kunci
+  FROM pg_views WHERE schemaname = 'lab11' AND viewname = 'v_pelanggan_buruk';
+
+  SET LOCAL app.kunci_lama = 'KunciLama-V1-2026';
+  SET LOCAL app.kunci_baru = 'KunciBaru-V2-Rotasi!';
+
+  UPDATE lab11.pelanggan
+  SET nik_enc = pgp_sym_encrypt(
+                  pgp_sym_decrypt(nik_enc, current_setting('app.kunci_lama')),
+                  current_setting('app.kunci_baru')
+                ),
+      versi_kunci = 2
+  WHERE versi_kunci = 1 AND id <= 2;
+
+  SELECT id, nama, versi_kunci,
+         pgp_sym_decrypt(nik_enc, current_setting('app.kunci_baru')) AS nik_dengan_kunci_v2
+  FROM lab11.pelanggan WHERE id <= 2 ORDER BY id;
+
+  SELECT pgp_sym_decrypt(nik_enc, current_setting('app.kunci_lama')) AS coba_kunci_bocor
+  FROM lab11.pelanggan WHERE id = 1;
+ROLLBACK;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+     viewname      |                definisi_view_membocorkan_kunci                 
+-------------------+----------------------------------------------------------------
+ v_pelanggan_buruk |  SELECT id,                                                   +
+                   |     nama,                                                     +
+                   |     pgp_sym_decrypt(nik_enc, 'KunciLama-V1-2026'::text) AS nik+
+                   |    FROM lab11.pelanggan;
+
+ id |    nama     | versi_kunci | nik_dengan_kunci_v2 
+----+-------------+-------------+---------------------
+  1 | Pelanggan 1 |           2 | 1271000000007919
+  2 | Pelanggan 2 |           2 | 1271000000015838
+
+ERROR:  Wrong key or corrupt data
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** Setelah rotasi kunci ke `versi_kunci = 2`, pemakaian kunci lama yang bocor (`KunciLama-V1-2026`) ditolak dengan `ERROR: Wrong key or corrupt data`.
+- **Alasan keputusan:** Menanam kunci di dalam definisi *view* atau tabel konfigurasi membuat kunci ikut terbaca lewat katalog sistem (`pg_views`) dan salinan `pg_dump`. Penyimpanan kunci wajib dipisah di pengelola kunci eksternal (KMS) disertai kolom `versi_kunci` agar rotasi kunci (*re-encryption*) dapat dilakukan tanpa henti layanan apabila kunci terindikasi bocor.
 
 ### Q23 · Penyamaran
-**Penanggung jawab:** Azkha · **Berkas:** `q23_*.sql`
+**Penanggung jawab:** Azkha · **Berkas:** `q23_penyamaran.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres` dan `app_laporan` (dalam transaksi `ROLLBACK`)
+- **Perintah:**
 ```sql
--- tempel perintah
+BEGIN;
+  CREATE VIEW lab11.v_pelanggan_samaran AS
+  SELECT id, tenant_id, nama,
+         left(nik, 4) || repeat('*', 8) || right(nik, 4) AS nik_samaran,
+         left(split_part(surel, '@', 1), 2) || '***@' || split_part(surel, '@', 2) AS surel_samaran,
+         kota, saldo,
+         repeat('*', greatest(length(rekening) - 4, 0)) || right(rekening, 4) AS rekening_samaran
+  FROM lab11.pelanggan
+  WHERE tenant_id = NULLIF(current_setting('app.tenant', true), '')::integer;
+
+  REVOKE SELECT ON lab11.pelanggan FROM app_read;
+  GRANT SELECT ON lab11.v_pelanggan_samaran TO app_read;
+
+  SET LOCAL ROLE app_laporan;
+  SET LOCAL app.tenant = '1';
+
+  SELECT id, nama, nik_samaran, surel_samaran, kota, rekening_samaran
+  FROM lab11.v_pelanggan_samaran ORDER BY id LIMIT 3;
+
+  SELECT id, nama, nik, rekening FROM lab11.pelanggan LIMIT 1;
+ROLLBACK;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+ id |    nama     |   nik_samaran    |   surel_samaran   |      kota       | rekening_samaran 
+----+-------------+------------------+-------------------+-----------------+------------------
+  1 | Pelanggan 1 | 1271********7919 | pe***@contoh.test | Binjai          | ******4729
+  2 | Pelanggan 2 | 1271********5838 | pe***@contoh.test | Pematangsiantar | ******9458
+  3 | Pelanggan 3 | 1271********3757 | pe***@contoh.test | Rantauprapat    | ******4187
+
+ERROR:  permission denied for table pelanggan
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** Percobaan peran `app_laporan` membaca langsung tabel dasar `lab11.pelanggan` ditolak dengan `ERROR: permission denied for table pelanggan`.
+- **Alasan keputusan:** Penyamaran melalui *view* yang diiringi pencabutan `SELECT` pada tabel dasar memastikan peran pelaporan hanya menerima format tersamar yang dibutuhkan untuk analisis tanpa membuka atribut sensitif mentah, sambil tetap mempertahankan penyaring `tenant_id` di dalam definisi *view*.
 
 ### Q24 · Identifikasi ulang
-**Penanggung jawab:** Azkha · **Berkas:** `q24_*.sql`
+**Penanggung jawab:** Azkha · **Berkas:** `q24_identifikasi_ulang.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres` (dalam transaksi `ROLLBACK`)
+- **Perintah:**
 ```sql
--- tempel perintah
+WITH kelompok_semu AS (
+  SELECT kota, lahir, count(*) AS jumlah_orang
+  FROM lab11.pelanggan GROUP BY kota, lahir
+)
+SELECT count(*) AS total_kombinasi_unik_tunggal
+FROM kelompok_semu WHERE jumlah_orang = 1;
+
+BEGIN;
+  CREATE TEMP TABLE sumber_eksternal (nama_publik text, kota text, tgl_lahir date) ON COMMIT DROP;
+  INSERT INTO sumber_eksternal (nama_publik, kota, tgl_lahir)
+  SELECT nama, kota, lahir FROM lab11.pelanggan WHERE id IN (10, 25, 50);
+
+  WITH dataset_tanpa_pengenal_langsung AS (
+    SELECT id, tenant_id, kota, lahir, saldo FROM lab11.pelanggan
+  )
+  SELECT e.nama_publik AS identitas_terungkap, d.id AS id_internal,
+         d.kota, d.lahir, d.saldo AS saldo_sensitif_terbaca
+  FROM dataset_tanpa_pengenal_langsung d
+  JOIN sumber_eksternal e ON d.kota = e.kota AND d.lahir = e.tgl_lahir
+  ORDER BY d.id;
+ROLLBACK;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+ total_kombinasi_unik_tunggal 
+------------------------------
+                         6000
+
+ identitas_terungkap | id_internal |      kota       |   lahir    | saldo_sensitif_terbaca 
+---------------------+-------------+-----------------+------------+------------------------
+ Pelanggan 10        |          10 | Pematangsiantar | 1961-01-05 |             1079190.00
+ Pelanggan 25        |          25 | Binjai          | 1962-07-14 |             1197975.00
+ Pelanggan 50        |          50 | Pematangsiantar | 1965-01-24 |             1395950.00
+ Pelanggan 10        |       18010 | Pematangsiantar | 1961-01-05 |            53621190.00
+ Pelanggan 25        |       18025 | Binjai          | 1962-07-14 |            53739975.00
+ Pelanggan 50        |       18050 | Pematangsiantar | 1965-01-24 |            53937950.00
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** Meski seluruh pengenal langsung (`nama`, `nik`, `surel`, `rekening`) dihapus, sebanyak `6.000` baris tetap unik secara tunggal hanya dari `(kota, lahir)`, dan tautan (*join*) dengan data eksternal langsung mengungkap catatan beserta saldo spesifik individu.
+- **Alasan keputusan:** Penghapusan pengenal langsung saja belum menghasilkan anonimisasi sejati karena atribut demografis bertindak sebagai pengenal semu (*quasi-identifiers*). Untuk pelepasan data analitik eksternal, diperlukan generalisasi rentang (misalnya tahun/dekade lahir atau wilayah provinsi) serta penerapan prinsip *k-anonymity*.
 
 ### Q25 · Tabel dan trigger audit
 **Penanggung jawab:** Syifa · **Berkas:** `q25_*.sql`
@@ -840,6 +1010,12 @@ Sementara itu, **tiga lapis pertahanan lainnya berperan sebagai pengendali dan p
 ### Refleksi D (Azkha)
 Dua ancaman yang tetap terbuka dan satu risiko operasional enkripsi kolom (bukti Q21–Q24):
 
+Meskipun enkripsi kolom dan penyamaran (*masking*) telah diterapkan pada Q21–Q23, terdapat **dua ancaman keamanan yang tetap terbuka**:
+1. **Kompromi pada lapisan aplikasi atau sesi aktif yang memegang kunci dekripsi (bukti Q21 & Q22):** Enkripsi tingkat kolom hanya melindungi data saat diam (*at rest*) di media penyimpanan dan berkas cadangan (`pg_dump`). Ketika aplikasi sah atau peran yang memiliki akses dekripsi menyuntikkan `app.enc_key` ke dalam sesi, data tetap didekripsi menjadi teks biasa di memori server; jika akun aplikasi tersebut dibajak atau mengalami celah injeksi, penyerang tetap memperoleh nilai asli.
+2. **Serangan korelasi dan identifikasi ulang melalui pengenal semu (bukti Q23 & Q24):** Penyamaran kolom `nik`, `surel`, dan `rekening` pada *view* maupun penghapusan pengenal langsung tidak menyembunyikan distribusi pengenal semu seperti `kota` dan `lahir`. Pada Q24 terbukti sebanyak `6.000` baris tetap memiliki kombinasi `(kota, lahir)` yang unik secara tunggal sehingga tetap dapat ditautkan (*re-identification*) dengan sumber data eksternal untuk mengungkap informasi finansial (`saldo`).
+
+**Satu risiko operasional utama enkripsi kolom** adalah **kehilangan permanen akses data apabila kunci hilang serta gangguan pengindeksan/pencarian dan rotasi kunci skala besar (bukti Q21 & Q22):** Karena *ciphertext* `pgp_sym_encrypt` menggunakan *salt* acak, nilai plaintext yang sama menghasilkan *ciphertext* berbeda sehingga indeks B-Tree standar tidak lagi dapat dipakai untuk pencarian kesetaraan maupun rentang secara langsung. Selain itu, jika pengelola kunci eksternal (KMS) kehilangan kunci aktif tanpa salinan pemulihan, seluruh kolom terenkripsi tidak dapat dipulihkan selamanya, sementara pergantian kunci (*key rotation* pada Q22) menuntut proses dekripsi dan enkripsi ulang seluruh baris aktif secara bertahap dengan pelacakan `versi_kunci`.
+
 ### Refleksi E (Syifa)
 Ketegangan Pasal 31 vs Pasal 43, dan satu usulan penyelesaian:
 
@@ -883,7 +1059,7 @@ Seluruh percobaan serangan hanya dijalankan pada kontainer lab11 milik sendiri d
 | Jelita Hati Sinurat        |                           |                  |
 | M. Dzakwan Ismail Rangkuti |M. Dzakwan Ismail Rangkuti | 18 November 2026 |
 | Agi Aginta Sembiring       |Agi Aginta Sembiring       | 18 November 2026 |
-| M. Azkha Amorie            |                           |                  |
+| M. Azkha Amorie            |M. Azkha Amorie            | 18 November 2026 |
 | Syifa Nazira               |                           |                  |
 
 ## Penggunaan AI dan Verifikasi
@@ -892,5 +1068,5 @@ Seluruh percobaan serangan hanya dijalankan pada kontainer lab11 milik sendiri d
 | Jelita Hati Sinurat        |                        |                                                                         |
 | M. Dzakwan Ismail Rangkuti | Penyusunan skrip pengujian RLS Q6–Q11 dan perumusan analisis Refleksi B | Menjalankan langsung seluruh skrip q06–q11 di kontainer lab11-db jaringan tertutup, memverifikasi angka keluaran (0 vs 10.000 vs 30.000 baris), dan mencocokkan dengan materi segmen 03. | 
 | Agi Aginta Sembiring       | Penyusunan skrip uji SQL injection Q12–Q18, perbaikan `rentan.py`, dan analisis Refleksi C | Menjalankan seluruh skrip dan payload pada kontainer `lab11-web` serta `lab11-db` di jaringan tertutup, dan memverifikasi keluaran nyata tiap percobaan. |
-| M. Azkha Amorie            |                        |                                                                         |
+| M. Azkha Amorie            | Penyusunan skrip uji kriptografi, enkripsi kolom, penyamaran (masking), dan identifikasi ulang Q19–Q24 serta analisis Refleksi D | Menjalankan seluruh skrip pada kontainer `lab11-db` dalam transaksi `ROLLBACK`, menguji skenario kunci salah dan rotasi kunci bocor, serta memverifikasi keluaran nyata tiap percobaan. |
 | Syifa Nazira               |                        |                                                                         |

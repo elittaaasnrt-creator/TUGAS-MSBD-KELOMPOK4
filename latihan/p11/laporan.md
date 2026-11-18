@@ -399,109 +399,240 @@ ROLLBACK
   3. **Akses melalui `VIEW` tanpa `security_invoker` atau fungsi `SECURITY DEFINER` milik pemilik objek**: Keduanya berjalan dengan hak pemilik objek (bukan pemanggil) sehingga kebijakan RLS peran aplikasi dapat dilewati; perbaikannya adalah mengaktifkan `security_invoker = true` pada *view* penyewa dan menghindari `SECURITY DEFINER` untuk query data multi-penyewa.
 
 ### Q12 · Perilaku normal rentan.py
-**Penanggung jawab:** Azkha · **Berkas:** `q12_*.sql`
+**Penanggung jawab:** Agi · **Berkas:** `q12_perilaku_normal.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres` (default koneksi `rentan.py` di dalam kontainer `lab11-web`)
+- **Perintah:**
+```bash
+python rentan.py "Pelanggan 12"
+```
 ```sql
--- tempel perintah
+SELECT count(*) AS baris_normal
+FROM lab11.pelanggan
+WHERE tenant_id = 1 AND nama ILIKE '%Pelanggan 12%';
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+SQL: SELECT id, nama, kota FROM lab11.pelanggan WHERE tenant_id = 1 AND nama ILIKE '%Pelanggan 12%'
+                                                                               ^^^^^^^^^^^^
+                                                                     Bagian dari masukan pengguna
+111 baris
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** Pada masukan normal `"Pelanggan 12"`, struktur sintaks query tetap utuh dan hanya mencocokkan nama pelanggan pada penyewa 1 (`Pelanggan 12`, `120–129`, dan `1200–1299` = `111` baris).
+- **Alasan keputusan:** Menetapkan pembanding perilaku normal diperlukan untuk menunjukkan posisi tepat di mana masukan pengguna disisipkan secara mentah ke dalam string perintah SQL.
 
 ### Q13 · Sebab injection, bukan kutip
-**Penanggung jawab:** Azkha · **Berkas:** `q13_*.sql`
+**Penanggung jawab:** Agi · **Berkas:** `q13_sebab_bukan_kutip.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres` (lewat `rentan.py` di `lab11-web`)
+- **Perintah:**
+```bash
+python rentan.py "zz' OR '1'='1"
+python rentan.py "zz' OR '1'='1' --"
+```
 ```sql
--- tempel perintah
+SELECT count(*) AS payload_tanpa_komentar
+FROM lab11.pelanggan
+WHERE tenant_id = 1 AND nama ILIKE '%zz' OR '1'='1%';
+
+SELECT count(*) AS payload_dengan_komentar
+FROM lab11.pelanggan
+WHERE tenant_id = 1 AND nama ILIKE '%zz' OR '1'='1' --%';
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+-- Payload 1 (tanpa --):
+SQL: SELECT id, nama, kota FROM lab11.pelanggan WHERE tenant_id = 1 AND nama ILIKE '%zz' OR '1'='1%'
+0 baris
+
+-- Payload 2 (dengan --):
+SQL: SELECT id, nama, kota FROM lab11.pelanggan WHERE tenant_id = 1 AND nama ILIKE '%zz' OR '1'='1' --%'
+30000 baris
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** Pada payload pertama tanpa `--`, tanda kutip dan `%` di ujung menempel sehingga menjadi `'1'='1%'` (`FALSE`) dan mengembalikan `0` baris.
+- **Alasan keputusan:** Pada payload kedua, komentar `--` membuang sisa kutip dan `%` di ujung sehingga `'1'='1'` menjadi `TRUE`. Karena prioritas operator `AND` lebih tinggi daripada `OR`, query dievaluasi sebagai `(tenant_id = 1 AND nama ILIKE '%zz') OR ('1'='1')`, yang melewati penyaring penyewa dan membocorkan seluruh `30.000` baris lintas penyewa. Ini membuktikan akar masalahnya adalah penyatuan saluran perintah dan data, bukan sekadar karakter kutip.
 
 ### Q14 · Batas hak lewat app_laporan
-**Penanggung jawab:** Azkha · **Berkas:** `q14_*.sql`
+**Penanggung jawab:** Agi · **Berkas:** `q14_batas_hak.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `app_laporan` (anggota `app_read` dengan konteks penyewa 1)
+- **Perintah:**
+```bash
+DB_USER=app_laporan DB_PASS=lab11 python rentan.py "zz' OR '1'='1' --"
+DB_USER=app_laporan DB_PASS=lab11 python rentan.py "zz' UNION SELECT id, username, kata_sandi FROM lab11.akun --"
+```
 ```sql
--- tempel perintah
+BEGIN;
+  SET LOCAL ROLE app_laporan;
+  SET LOCAL app.tenant = '1';
+  SELECT count(*) AS baris_via_app_laporan
+  FROM lab11.pelanggan
+  WHERE tenant_id = 1 AND nama ILIKE '%zz' OR '1'='1'; --%';
+COMMIT;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+-- Payload OR '1'='1' via app_laporan:
+SQL: SELECT id, nama, kota FROM lab11.pelanggan WHERE tenant_id = 1 AND nama ILIKE '%zz' OR '1'='1' --%'
+10000 baris
+
+-- Payload UNION SELECT ke lab11.akun via app_laporan:
+psycopg2.errors.InsufficientPrivilege: permission denied for table akun
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** Serangan `UNION SELECT` ke tabel `lab11.akun` ditolak (`permission denied for table akun`), dan kebocoran pada `lab11.pelanggan` tertahan hanya pada `10.000` baris penyewa 1.
+- **Alasan keputusan:** Prinsip hak minimum per tabel dan kebijakan RLS berhasil membatasi radius ledakan serangan (tabel `akun` terlindungi dan data penyewa 2–3 tidak bocor), tetapi selama query masih dirangkai dengan penyambungan string, penyerang tetap bisa menyedot seluruh `10.000` data di dalam penyewa yang sama.
 
 ### Q15 · Perbaikan berparameter
-**Penanggung jawab:** Azkha · **Berkas:** `q15_*.sql`
+**Penanggung jawab:** Agi · **Berkas:** `q15_perbaikan.sql`, `rentan.py`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `app_laporan` (lewat `rentan.py` yang sudah diubah ke `cari_aman`)
+- **Perintah:**
+```bash
+DB_USER=app_laporan DB_PASS=lab11 python rentan.py "zz' OR '1'='1' --"
+DB_USER=app_laporan DB_PASS=lab11 python rentan.py "Pelanggan 12"
+```
 ```sql
--- tempel perintah
+PREPARE q_cari_aman (text) AS
+  SELECT count(*) AS hasil_berparameter
+  FROM lab11.pelanggan
+  WHERE tenant_id = 1 AND nama ILIKE $1;
+
+EXECUTE q_cari_aman('%zz'' OR ''1''=''1'' --%');
+DEALLOCATE q_cari_aman;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+0 baris (aman)
+100 baris (aman)
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** Seluruh payload `zz' OR '1'='1' --` diperlakukan murni sebagai teks pencarian literal sehingga menghasilkan `0 baris (aman)`.
+- **Alasan keputusan:** Query berparameter (*prepared statement* dengan placeholder `%s`) memisahkan struktur sintaks perintah dari nilai parameter pada protokol komunikasi basis data. Penyaringan atau penghapusan karakter kutip (*blacklist sanitization*) tidak akan mencapai keamanan yang setara karena mudah dilewati melalui variasi *encoding*, injeksi tanpa kutip, maupun komentar, sekaligus merusak masukan sah yang memang mengandung apostrof.
 
 ### Q16 · Pengenal dan daftar putih
-**Penanggung jawab:** Azkha · **Berkas:** `q16_*.sql`
+**Penanggung jawab:** Agi · **Berkas:** `q16_pengenal_daftar_putih.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres`
+- **Perintah:**
 ```sql
--- tempel perintah
+DO $$
+DECLARE
+  v_kolom text := 'kota';
+  v_arah  text := 'DESC';
+  v_sql   text;
+  v_contoh text;
+BEGIN
+  IF v_kolom NOT IN ('nama', 'kota', 'dibuat_pada') OR v_arah NOT IN ('ASC', 'DESC') THEN
+    RAISE EXCEPTION 'parameter pengurutan tidak dikenal: % %', v_kolom, v_arah;
+  END IF;
+  v_sql := format(
+    'SELECT nama || '' ('' || kota || '')'' FROM lab11.pelanggan WHERE tenant_id = 1 ORDER BY %I %s LIMIT 1',
+    v_kolom, v_arah
+  );
+  EXECUTE v_sql INTO v_contoh;
+  RAISE NOTICE 'Validasi daftar putih berhasil -> contoh baris: %', v_contoh;
+END $$;
+
+-- Uji negatif (nilai di luar daftar putih):
+DO $$
+DECLARE
+  v_kolom text := 'nama; DROP TABLE lab11.pelanggan; --';
+BEGIN
+  IF v_kolom NOT IN ('nama', 'kota', 'dibuat_pada') THEN
+    RAISE EXCEPTION 'parameter pengurutan tidak dikenal: %', v_kolom;
+  END IF;
+END $$;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+NOTICE:  Validasi daftar putih berhasil -> contoh baris: Pelanggan 3 (Rantauprapat)
+ERROR:  parameter pengurutan tidak dikenal: nama; DROP TABLE lab11.pelanggan; --
+CONTEXT:  PL/pgSQL function inline_code_block line 7 at RAISE
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** Masukan pengurutan di luar daftar putih (`nama; DROP TABLE lab11.pelanggan; --`) langsung ditolak sebelum menyentuh penyusunan query.
+- **Alasan keputusan:** Parameter berikat (`%s` / `$1`) hanya berlaku untuk nilai literal, bukan nama kolom, nama tabel, atau kata kunci arah urut (`ASC`/`DESC`). Karena pengenal tidak dapat diparameterkan, satu-satunya cara aman adalah memetakannya melalui daftar putih tertutup (*whitelist*) di aplikasi dan membungkus pengenal dengan `format('%I', ...)` di SQL.
 
 ### Q17 · Second-order injection
-**Penanggung jawab:** Azkha · **Berkas:** `q17_*.sql`
+**Penanggung jawab:** Agi · **Berkas:** `q17_second_order.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres` (dalam transaksi `ROLLBACK`)
+- **Perintah:**
 ```sql
--- tempel perintah
+CREATE OR REPLACE FUNCTION lab11.laporan_kota_rentan(p_transaksi_id int)
+RETURNS bigint LANGUAGE plpgsql AS $$
+DECLARE v_status text; v_total bigint;
+BEGIN
+  SELECT status INTO v_status FROM lab11.transaksi WHERE id = p_transaksi_id;
+  EXECUTE 'SELECT count(*) FROM lab11.transaksi t JOIN lab11.pelanggan p ON p.id = t.pelanggan_id WHERE t.status = ''' || v_status || '''' INTO v_total;
+  RETURN v_total;
+END $$;
+
+CREATE OR REPLACE FUNCTION lab11.laporan_kota_aman(p_transaksi_id int)
+RETURNS bigint LANGUAGE plpgsql AS $$
+DECLARE v_status text; v_total bigint;
+BEGIN
+  SELECT status INTO v_status FROM lab11.transaksi WHERE id = p_transaksi_id;
+  EXECUTE 'SELECT count(*) FROM lab11.transaksi t JOIN lab11.pelanggan p ON p.id = t.pelanggan_id WHERE t.status = $1' USING v_status INTO v_total;
+  RETURN v_total;
+END $$;
+
+BEGIN;
+  PREPARE ins_transaksi_aman (int, int, int, numeric, text) AS
+    INSERT INTO lab11.transaksi (id, pelanggan_id, tenant_id, jumlah, status, dibuat_pada)
+    VALUES ($1, $2, $3, $4, $5, now());
+  EXECUTE ins_transaksi_aman(999999, 1, 1, 50000, ''' OR ''1''=''1');
+  DEALLOCATE ins_transaksi_aman;
+
+  SELECT lab11.laporan_kota_rentan(999999) AS hasil_laporan_rentan,
+         lab11.laporan_kota_aman(999999)   AS hasil_laporan_aman;
+ROLLBACK;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+CREATE FUNCTION
+CREATE FUNCTION
+INSERT 0 1
+ hasil_laporan_rentan | hasil_laporan_aman 
+----------------------+--------------------
+               120001 |                  1
+ROLLBACK
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** `laporan_kota_rentan` mengembalikan `120001` baris (seluruh isi tabel `transaksi` ditambah baris uji) meskipun data masuk lewat `INSERT` berparameter.
+- **Alasan keputusan:** Pertahanan hanya di pintu masuk (`INSERT` berparameter) menyimpan payload berbahaya secara utuh ke dalam kolom tabel sebagai data sah. Ketika fungsi laporan di kemudian hari membaca kolom tersebut dan merangkainya ke string `EXECUTE` tanpa `USING`, payload tersebut meledak menjadi perintah SQL (*second-order injection*). Oleh karena itu, setiap titik konsumsi data dinamis wajib memakai parameter (`USING $1`).
 
 ### Q18 · Batas waktu query
-**Penanggung jawab:** Azkha · **Berkas:** `q18_*.sql`
+**Penanggung jawab:** Agi · **Berkas:** `q18_batas_waktu.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres` dan `app_laporan`
+- **Perintah:**
 ```sql
--- tempel perintah
+ALTER ROLE app_laporan SET statement_timeout = '5s';
+ALTER ROLE app_portal  SET statement_timeout = '5s';
+
+SELECT rolname, rolconfig
+FROM pg_roles
+WHERE rolname IN ('app_laporan', 'app_portal')
+ORDER BY rolname;
+
+BEGIN;
+  SET LOCAL ROLE app_laporan;
+  SET LOCAL statement_timeout = '200ms';
+  SELECT pg_sleep(2) AS simulasi_query_berat;
+COMMIT;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+ALTER ROLE
+ALTER ROLE
+   rolname   |       rolconfig        
+-------------+------------------------
+ app_laporan | {statement_timeout=5s}
+ app_portal  | {statement_timeout=5s}
+
+ERROR:  canceling statement due to statement timeout
+ROLLBACK
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** Query lambat `pg_sleep(2)` otomatis diputus mesin basis data setelah `200ms` dengan pesan galat `ERROR: canceling statement due to statement timeout`.
+- **Alasan keputusan:** Memasang `statement_timeout` di tingkat peran basis data membatasi konsumsi sumber daya CPU dan kunci (*lock*) apabila penyerang menyuntikkan fungsi penunda (`pg_sleep`) atau query berat (*Denial of Service*).
 
 ### Q19 · Hash vs enkripsi
 **Penanggung jawab:** Syifa · **Berkas:** `q19_*.sql`
@@ -695,10 +826,18 @@ Apakah penyaring `WHERE tenant_id` di aplikasi masih perlu? Sebut rencana ekseku
 **Ya, penyaring `WHERE tenant_id` di aplikasi tetap perlu ditulis**, meskipun RLS sudah aktif di basis data. Keduanya memikul tugas yang berbeda dalam arsitektur pertahanan berlapis:
 1. **Tugas RLS (Batas Keamanan / *Security Boundary*):** Ditegakkan oleh basis data sebagai jaring pengaman wajib (*fail-safe*) agar data lintas penyewa tidak pernah bocor sekalipun pengembang lupa menulis klausa `WHERE` atau terjadi celah pada kode aplikasi.
 2. **Tugas `WHERE tenant_id` di Aplikasi (Kejelasan Niat & Optimasi Rencana Eksekusi):** Menyatakan niat bisnis secara eksplisit dan membantu perencana query (*query planner*) PostgreSQL dalam menyusun rencana eksekusi (`EXPLAIN`). Ketika predikat `WHERE tenant_id = <konstanta>` ditulis langsung oleh aplikasi, *planner* dapat melakukan pemangkasan partisi (*partition pruning*) maupun pemilihan indeks (*Index Scan*) secara langsung saat tahap perencanaan. Sebaliknya, jika hanya mengandalkan ekspresi dinamis `nullif(current_setting('app.tenant', true), '')::int` dari RLS, nilai parameter sesi sering kali baru dievaluasi saat eksekusi sehingga berisiko menurunkan efisiensi pemilihan indeks pada tabel besar.
-### Refleksi C (Azkha)
+
+### Refleksi C (Agi)
 Satu lapis yang menghapus sebab masalah, dan peran tiga lapis lain (bukti Q14 dan Q18):
 
-### Refleksi D (Agi)
+**Satu lapis yang menghapus sebab masalah SQL injection adalah query berparameter (*prepared statement* / placeholder `%s` atau `$1`)** yang memisahkan saluran perintah SQL dari data masukan pengguna sejak di protokol basis data (dibuktikan pada Q15 di mana payload `zz' OR '1'='1' --` mengembalikan `0 baris (aman)`).
+
+Sementara itu, **tiga lapis pertahanan lainnya berperan sebagai pengendali dan pembatas dampak (*defense-in-depth*)** apabila salah satu jalur kode terlewat diparameterkan:
+1. **Prinsip hak minimum per tabel dan peran non-pemilik (`app_read` / `app_laporan`):** Mencegah serangan lintas tabel maupun pengubahan struktur skema. Terbukti pada Q14 ketika payload `UNION SELECT` mencoba membaca kredensial di `lab11.akun`, basis data menolaknya dengan `permission denied for table akun`.
+2. **Row-Level Security (`ENABLE/FORCE RLS` dan kebijakan penyewa):** Membatasi ruang lingkup baris hanya pada penyewa aktif sehingga injeksi tidak dapat menyeberang ke data penyewa lain. Terbukti pada Q14 di mana injeksi `OR '1'='1'` yang semula membocorkan `30.000` baris lintas penyewa menyusut menjadi `10.000` baris milik penyewa 1 saja.
+3. **Batas waktu eksekusi (`statement_timeout`):** Membatasi ketersediaan sumber daya agar injeksi query berat atau fungsi penunda tidak melumpuhkan server (*Denial of Service*). Terbukti pada Q18 di mana query `pg_sleep(2)` otomatis diputus oleh PostgreSQL dengan galat `canceling statement due to statement timeout`.
+
+### Refleksi D (Azkha)
 Dua ancaman yang tetap terbuka dan satu risiko operasional enkripsi kolom (bukti Q21–Q24):
 
 ### Refleksi E (Syifa)
@@ -739,19 +878,19 @@ Tiap disiplin: lapisan penegakan, akibat bila dilanggar, satu bukti percobaan.
 ## Pernyataan Etika
 Seluruh percobaan serangan hanya dijalankan pada kontainer lab11 milik sendiri di jaringan tertutup yang tidak tersambung ke internet. Kami memahami bahwa menjalankannya pada sistem lain adalah tindak pidana.
 
-| Nama                       | Tanda tangan | Tanggal |
-|----------------------------|--------------|---------|
-| Jelita Hati Sinurat        |              |         |
+| Nama                       | Tanda tangan              | Tanggal          |
+|----------------------------|---------------------------|------------------|
+| Jelita Hati Sinurat        |                           |                  |
 | M. Dzakwan Ismail Rangkuti |M. Dzakwan Ismail Rangkuti | 18 November 2026 |
-| Agi Aginta Sembiring       |              |         |
-| M. Azkha Amorie            |              |         |
-| Syifa Nazira               |              |         |
+| Agi Aginta Sembiring       |Agi Aginta Sembiring       | 18 November 2026 |
+| M. Azkha Amorie            |                           |                  |
+| Syifa Nazira               |                           |                  |
 
 ## Penggunaan AI dan Verifikasi
 | Nama                      -| Bagian yang dibantu AI | Cara memverifikasi (dijalankan ulang, dibandingkan dengan materi, dst.) |
 |----------------------------|------------------------|-------------------------------------------------------------------------|
 | Jelita Hati Sinurat        |                        |                                                                         |
 | M. Dzakwan Ismail Rangkuti | Penyusunan skrip pengujian RLS Q6–Q11 dan perumusan analisis Refleksi B | Menjalankan langsung seluruh skrip q06–q11 di kontainer lab11-db jaringan tertutup, memverifikasi angka keluaran (0 vs 10.000 vs 30.000 baris), dan mencocokkan dengan materi segmen 03. | 
-| Agi Aginta Sembiring       |                        |                                                                         |
+| Agi Aginta Sembiring       | Penyusunan skrip uji SQL injection Q12–Q18, perbaikan `rentan.py`, dan analisis Refleksi C | Menjalankan seluruh skrip dan payload pada kontainer `lab11-web` serta `lab11-db` di jaringan tertutup, dan memverifikasi keluaran nyata tiap percobaan. |
 | M. Azkha Amorie            |                        |                                                                         |
 | Syifa Nazira               |                        |                                                                         |

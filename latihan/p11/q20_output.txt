@@ -1,0 +1,19 @@
+Timing is on.
+ bf6 
+-----
+  10
+(1 row)
+
+Time: 24.270 ms
+ bf10 
+------
+   10
+(1 row)
+
+Time: 383.743 ms
+ md5 
+-----
+  10
+(1 row)
+
+Time: 3.040 ms

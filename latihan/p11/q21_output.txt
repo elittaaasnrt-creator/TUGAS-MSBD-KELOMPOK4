@@ -1,0 +1,18 @@
+SET
+ALTER TABLE
+UPDATE 1000
+ terenkripsi 
+-------------
+        1000
+(1 row)
+
+ id |    asli    | hasil_dekripsi 
+----+------------+----------------
+  1 | 0000104729 | 0000104729
+(1 row)
+
+ sama 
+------
+ f
+(1 row)
+

@@ -1,0 +1,8 @@
+ pid  | usename  | state  |                                                                 query                                                                  
+------+----------+--------+----------------------------------------------------------------------------------------------------------------------------------------
+ 1695 | postgres | active | SELECT pg_sleep(20), count(pgp_sym_decrypt(rekening_enc,'kunci-lab11-jangan-dipakai-di-produksi')) FROM lab11.pelanggan WHERE id<=1000
+(1 row)
+
+ERROR:  syntax error at or near "s"
+LINE 1: s
+        ^

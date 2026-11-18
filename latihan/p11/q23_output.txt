@@ -1,0 +1,22 @@
+WARNING:  role "app_analitik" has not been granted membership in role "pg_read_all_data" by role "postgres"
+REVOKE ROLE
+NOTICE:  view "v_pelanggan_samar" does not exist, skipping
+DROP VIEW
+CREATE VIEW
+REVOKE
+GRANT
+SET
+    peran     
+--------------
+ app_analitik
+(1 row)
+
+ERROR:  permission denied for table pelanggan
+  id  | tenant_id |      nama      |       nik        |      surel       | lahir_tahun |      kota       | saldo_bulat 
+------+-----------+----------------+------------------+------------------+-------------+-----------------+-------------
+ 1001 |         1 | P************* | xxxxxxxxxxxx6919 | ****@contoh.test | 1962-01-01  | Binjai          |     8900000
+ 1002 |         1 | P************* | xxxxxxxxxxxx4838 | ****@contoh.test | 1962-01-01  | Pematangsiantar |     8900000
+ 1003 |         1 | P************* | xxxxxxxxxxxx2757 | ****@contoh.test | 1963-01-01  | Rantauprapat    |     8900000
+(3 rows)
+
+RESET

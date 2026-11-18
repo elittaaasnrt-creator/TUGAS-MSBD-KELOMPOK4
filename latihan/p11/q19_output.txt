@@ -1,0 +1,15 @@
+                            hash1                             |                            hash2                             
+--------------------------------------------------------------+--------------------------------------------------------------
+ $2a$08$EOLSyyftt.Jwlb095Yx4zuJVr1bAjPwUxp/gpavkZIXIEzj11uz/G | $2a$08$sphKUaIAYvgo1i13md6dJ.aLXsOn06UG8e25KYL7x6Cq4cEPvWn7e
+(1 row)
+
+ sama 
+------
+ f
+(1 row)
+
+ verifikasi_benar | verifikasi_salah 
+------------------+------------------
+ t                | f
+(1 row)
+

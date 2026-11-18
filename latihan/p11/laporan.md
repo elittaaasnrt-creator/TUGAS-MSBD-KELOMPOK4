@@ -13,91 +13,144 @@ Kelompok: ........ · Cabang: `latihan/p11-keamanan` · Merge request: <tempel t
 | Syifa Nazira               | 251402126 | Audit dan UU PDP Q25–Q30, Refleksi E                   |        |
 
 ## Bukti Setup (q00)
-Peran: `postgres`
+Peran: `postgres`. Setup lab11 dibuat sendiri oleh kelompok karena berkas modul tidak ditemukan.
 
 ```text
--- hasil: tenant | pelanggan | akun | transaksi  (harapkan 3 | 30000 | 4 | 120000)
--- hasil: jumlah pelanggan per penyewa (harapkan 10000 tiap penyewa)
--- hasil: docker network inspect lab11_labnet --format '{{.Internal}}'  (harapkan true)
-```
+ tenant | pelanggan | akun | transaksi
+--------+-----------+------+-----------
+      3 |     30000 |    4 |    120000
 
+ tenant_id | count
+-----------+-------
+         1 | 10000
+         2 | 10000
+         3 | 10000
+
+docker network inspect lab11_labnet --format '{{.Internal}}'  ->  true
+lab11-db  Up (healthy)  5432/tcp   (tanpa port publik)
+```
 ## Q1–Q30
 Format tiap soal: peran, perintah, keluaran nyata, uji negatif, alasan keputusan.
 
 ### Q1 · Hak pemilik tidak bisa dicabut
 **Penanggung jawab:** Jelita · **Berkas:** `q01_*.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres` (REVOKE), lalu `skema_owner` lewat `SET ROLE` (UPDATE dan GRANT)
+- **Perintah:**
 ```sql
--- tempel perintah
+REVOKE UPDATE ON lab11.pelanggan FROM skema_owner;
+SET ROLE skema_owner;
+BEGIN; UPDATE lab11.pelanggan SET kota = kota WHERE id = 3; ROLLBACK;
+GRANT UPDATE ON lab11.pelanggan TO skema_owner;
+BEGIN; UPDATE lab11.pelanggan SET kota = kota WHERE id = 3; ROLLBACK;
+RESET ROLE;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+ERROR:  permission denied for table pelanggan     (UPDATE pertama, setelah REVOKE)
+UPDATE 1                                           (UPDATE kedua, setelah GRANT oleh pemilik sendiri)
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** UPDATE pertama ditolak, jadi REVOKE memang berlaku, tetapi hanya sampai pemilik memberikannya lagi.
+- **Alasan keputusan:** Pemilik objek memegang semua hak beserta wewenang menggrantnya. REVOKE hanya menghapus entri di ACL, sedangkan wewenang itu melekat pada kepemilikan, sehingga pemilik bisa memulihkan haknya sendiri kapan saja.
 
 ### Q2 · DROP bukan hak yang bisa di-REVOKE
 **Penanggung jawab:** Jelita · **Berkas:** `q02_*.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres`
+- **Perintah:**
 ```sql
--- tempel perintah
+REVOKE DROP ON lab11.akun FROM skema_owner;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+ERROR:  unrecognized privilege type "drop"
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** DROP tidak dikenali sebagai hak, jadi tidak ada yang bisa dicabut.
+- **Alasan keputusan:** SELECT/UPDATE adalah hak di ACL yang bisa diberi dan dicabut. DROP dan ALTER adalah wewenang yang melekat pada pemilik (atau anggota peran pemilik dan superuser). Satu-satunya jalan mencabutnya adalah memindahkan kepemilikan (`ALTER ... OWNER TO`) atau menghapus peran.
 
 ### Q3 · Default privileges
 **Penanggung jawab:** Jelita · **Berkas:** `q03_*.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres`
+- **Perintah:**
 ```sql
--- tempel perintah
+CREATE TABLE lab11.catatan_postgres (id int);
+SELECT has_table_privilege('app_laporan','lab11.catatan_postgres','SELECT') AS via_postgres;
+DROP TABLE lab11.catatan_postgres;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+ via_postgres
+--------------
+ f
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** `app_laporan` tidak bisa membaca tabel buatan `postgres` (hasil `f`).
+- **Alasan keputusan:** `ALTER DEFAULT PRIVILEGES FOR ROLE skema_owner` hanya berlaku untuk objek yang dibuat `skema_owner`. Untuk objek buatan `postgres` perlu `ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA lab11 GRANT SELECT ON TABLES TO app_laporan;` (berlaku untuk objek baru, tidak retroaktif).
 
 ### Q4 · GRANT OPTION dan CASCADE
 **Penanggung jawab:** Jelita · **Berkas:** `q04_*.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres`, dan `app_write` lewat `SET ROLE` untuk meneruskan hak
+- **Perintah:**
 ```sql
--- tempel perintah
+GRANT SELECT ON lab11.transaksi TO app_write WITH GRANT OPTION;
+SET ROLE app_write;
+GRANT SELECT ON lab11.transaksi TO app_analitik;
+RESET ROLE;
+REVOKE GRANT OPTION FOR SELECT ON lab11.transaksi FROM app_write;
+REVOKE GRANT OPTION FOR SELECT ON lab11.transaksi FROM app_write CASCADE;
+SELECT has_table_privilege('app_analitik','lab11.transaksi','SELECT') AS analitik,
+       has_table_privilege('app_write','lab11.transaksi','SELECT')    AS app_write;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+ERROR:  dependent privileges exist
+HINT:  Use CASCADE to revoke them too.
+(REVOKE ... CASCADE berhasil)
+ analitik | app_write
+----------+-----------
+ f        | t
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+- **Uji negatif (bila relevan):** setelah CASCADE, `app_analitik` kehilangan akses (`f`).
+- **Alasan keputusan:** Hak `app_analitik` diturunkan lewat `app_write`, jadi tanpa CASCADE PostgreSQL menolak agar tidak ada hak yatim. `REVOKE GRANT OPTION FOR` (bukan `REVOKE SELECT`) dipilih supaya SELECT milik `app_write` tetap utuh (`t`).
 
 ### Q5 · Tabel tujuh peran
 **Penanggung jawab:** Jelita · **Berkas:** `q05_*.sql`
 
-- **Peran yang menjalankan:** `...`
-- **Perintah:** 
+- **Peran yang menjalankan:** `postgres`
+- **Perintah:**
 ```sql
--- tempel perintah
+SELECT rolname, rolcanlogin AS bisa_login, rolsuper, rolbypassrls
+FROM pg_roles WHERE rolname LIKE 'app\_%' OR rolname = 'skema_owner' ORDER BY 1;
+SELECT r.rolname AS peran, m.rolname AS anggota_dari
+FROM pg_auth_members a JOIN pg_roles r ON r.oid = a.member JOIN pg_roles m ON m.oid = a.roleid
+WHERE r.rolname LIKE 'app\_%' ORDER BY 1;
 ```
 - **Keluaran nyata:**
 ```text
--- tempel keluaran / pesan galat
+   rolname    | bisa_login | rolsuper | rolbypassrls
+ app_analitik | t          | f        | f
+ app_auditor  | t          | f        | f
+ app_laporan  | t          | f        | f
+ app_portal   | t          | f        | f
+ app_read     | f          | f        | f
+ app_write    | f          | f        | f
+ skema_owner  | f          | f        | f
+ keanggotaan: app_laporan -> app_read, app_portal -> app_write
 ```
-- **Uji negatif (bila relevan):** ...
-- **Alasan keputusan:** ...
+
+| Peran | Login | Boleh melakukan |
+|---|---|---|
+| skema_owner | tidak | pemilik skema dan tabel lab11: DDL dan GRANT; tidak dipakai aplikasi |
+| app_read | tidak | SELECT pada pelanggan (tunduk RLS), dipakai lewat keanggotaan |
+| app_write | tidak | SELECT/INSERT/UPDATE/DELETE pada pelanggan (tunduk RLS) |
+| app_laporan | ya | anggota app_read; baca laporan; SELECT otomatis pada tabel baru skema_owner |
+| app_analitik | ya | tanpa hak awal; nanti hanya membaca tampilan tersamar |
+| app_portal | ya | anggota app_write; aplikasi portal penyewa |
+| app_auditor | ya | tanpa hak awal; disiapkan untuk membaca jejak audit |
+
+- **Uji negatif (bila relevan):** tidak ada peran superuser atau BYPASSRLS selain `postgres`.
+- **Alasan keputusan:** Aplikasi tidak pernah login sebagai pemilik karena hak pemilik (DROP, ALTER, GRANT) tidak bisa dicabut, sehingga satu celah injection akan menyerahkan seluruh skema.
 
 ### Q6 · Default deny RLS
 **Penanggung jawab:** Mael · **Berkas:** `q06_*.sql`
@@ -478,6 +531,7 @@ Format tiap soal: peran, perintah, keluaran nyata, uji negatif, alasan keputusan
 ### Refleksi A (Jelita)
 Mengapa "mencabut hak" bukan jalan keluar K1, dan apa jalan keluarnya (bukti dari Q1):
 
+Pada Q1, `REVOKE UPDATE` memang membuat `skema_owner` ditolak (`ERROR: permission denied for table pelanggan`), tetapi satu `GRANT UPDATE` yang dijalankan pemilik sendiri langsung memulihkannya (`UPDATE 1`). Q2 menambah bukti bahwa DROP dan ALTER bahkan bukan hak yang bisa dicabut (`unrecognized privilege type "drop"`). Jadi risikonya melekat pada kepemilikan, bukan pada daftar hak, dan mencabut hak hanya menutup pintu yang kuncinya masih dipegang pemilik. Itu sebabnya "mencabut hak" bukan jalan keluar untuk K1. Jalan keluarnya adalah memisahkan peran: pemilik tidak pernah dipakai login aplikasi (hanya untuk migrasi), aplikasi memakai peran `app_*` non-pemilik dengan hak minimum per tabel (Q5), `ALTER DEFAULT PRIVILEGES` untuk objek baru (Q3), dan `FORCE ROW LEVEL SECURITY` supaya pemilik pun tunduk pada kebijakan.
 ### Refleksi B (Mael)
 Apakah penyaring `WHERE tenant_id` di aplikasi masih perlu? Sebut rencana eksekusi (`EXPLAIN`):
 

@@ -1,0 +1,34 @@
+name: lab11
+services:
+  lab11-db:
+    image: postgres:17
+    container_name: lab11-db
+    environment:
+      POSTGRES_PASSWORD: lab11
+      POSTGRES_DB: msbd
+    volumes:
+      - lab11_pgdata:/var/lib/postgresql/data
+      - lab11_sql:/sql
+    networks: [labnet]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d msbd"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  lab11-web:
+    build: ./app
+    container_name: lab11-web
+    working_dir: /app
+    command: sleep infinity
+    volumes:
+      - ./app:/app
+    depends_on:
+      lab11-db:
+        condition: service_healthy
+    networks: [labnet]
+networks:
+  labnet:
+    internal: true
+volumes:
+  lab11_pgdata:
+  lab11_sql:

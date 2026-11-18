@@ -635,7 +635,7 @@ ROLLBACK
 - **Alasan keputusan:** Memasang `statement_timeout` di tingkat peran basis data membatasi konsumsi sumber daya CPU dan kunci (*lock*) apabila penyerang menyuntikkan fungsi penunda (`pg_sleep`) atau query berat (*Denial of Service*).
 
 ### Q19 · Hash vs enkripsi
-**Penanggung jawab:** Syifa · **Berkas:** `q19_*.sql`
+**Penanggung jawab:** Azkha · **Berkas:** `q19_*.sql`
 
 - **Peran yang menjalankan:** `...`
 - **Perintah:** 
@@ -650,7 +650,7 @@ ROLLBACK
 - **Alasan keputusan:** ...
 
 ### Q20 · Biaya kerja hash
-**Penanggung jawab:** Syifa · **Berkas:** `q20_*.sql`
+**Penanggung jawab:** Azkha · **Berkas:** `q20_*.sql`
 
 - **Peran yang menjalankan:** `...`
 - **Perintah:** 
@@ -665,7 +665,7 @@ ROLLBACK
 - **Alasan keputusan:** ...
 
 ### Q21 · Enkripsi kolom
-**Penanggung jawab:** Syifa · **Berkas:** `q21_*.sql`
+**Penanggung jawab:** Azkha · **Berkas:** `q21_*.sql`
 
 - **Peran yang menjalankan:** `...`
 - **Perintah:** 
@@ -680,7 +680,7 @@ ROLLBACK
 - **Alasan keputusan:** ...
 
 ### Q22 · Kunci bocor
-**Penanggung jawab:** Syifa · **Berkas:** `q22_*.sql`
+**Penanggung jawab:** Azkha · **Berkas:** `q22_*.sql`
 
 - **Peran yang menjalankan:** `...`
 - **Perintah:** 
@@ -695,7 +695,7 @@ ROLLBACK
 - **Alasan keputusan:** ...
 
 ### Q23 · Penyamaran
-**Penanggung jawab:** Syifa · **Berkas:** `q23_*.sql`
+**Penanggung jawab:** Azkha · **Berkas:** `q23_*.sql`
 
 - **Peran yang menjalankan:** `...`
 - **Perintah:** 
@@ -710,7 +710,7 @@ ROLLBACK
 - **Alasan keputusan:** ...
 
 ### Q24 · Identifikasi ulang
-**Penanggung jawab:** Syifa · **Berkas:** `q24_*.sql`
+**Penanggung jawab:** Azkha · **Berkas:** `q24_*.sql`
 
 - **Peran yang menjalankan:** `...`
 - **Perintah:** 
@@ -725,7 +725,7 @@ ROLLBACK
 - **Alasan keputusan:** ...
 
 ### Q25 · Tabel dan trigger audit
-**Penanggung jawab:** Agi · **Berkas:** `q25_*.sql`
+**Penanggung jawab:** Syifa · **Berkas:** `q25_*.sql`
 
 - **Peran yang menjalankan:** `...`
 - **Perintah:** 
@@ -740,7 +740,7 @@ ROLLBACK
 - **Alasan keputusan:** ...
 
 ### Q26 · Uji audit
-**Penanggung jawab:** Agi · **Berkas:** `q26_*.sql`
+**Penanggung jawab:** Syifa · **Berkas:** `q26_*.sql`
 
 - **Peran yang menjalankan:** `...`
 - **Perintah:** 
@@ -755,7 +755,7 @@ ROLLBACK
 - **Alasan keputusan:** ...
 
 ### Q27 · Sinyal anomali
-**Penanggung jawab:** Agi · **Berkas:** `q27_*.sql`
+**Penanggung jawab:** Syifa · **Berkas:** `q27_*.sql`
 
 - **Peran yang menjalankan:** `...`
 - **Perintah:** 
@@ -770,7 +770,7 @@ ROLLBACK
 - **Alasan keputusan:** ...
 
 ### Q28 · Permintaan hapus
-**Penanggung jawab:** Agi · **Berkas:** `q28_*.sql`
+**Penanggung jawab:** Syifa · **Berkas:** `q28_*.sql`
 
 - **Peran yang menjalankan:** `...`
 - **Perintah:** 
@@ -785,7 +785,7 @@ ROLLBACK
 - **Alasan keputusan:** ...
 
 ### Q29 · Hapus dan sisa data
-**Penanggung jawab:** Agi · **Berkas:** `q29_*.sql`
+**Penanggung jawab:** Syifa · **Berkas:** `q29_*.sql`
 
 - **Peran yang menjalankan:** `...`
 - **Perintah:** 
@@ -800,7 +800,7 @@ ROLLBACK
 - **Alasan keputusan:** ...
 
 ### Q30 · Peta UU PDP
-**Penanggung jawab:** Agi · **Berkas:** `q30_*.md`
+**Penanggung jawab:** Syifa · **Berkas:** `q30_*.md`
 
 - **Peran yang menjalankan:** `...`
 - **Perintah:** 
